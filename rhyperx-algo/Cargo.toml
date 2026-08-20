@@ -1,0 +1,8 @@
+[package]
+name = "rhyperx-algo"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+description = "All non-trivial algorithms implemented in the rhyperx hypergraph library."
+
+[dependencies]
