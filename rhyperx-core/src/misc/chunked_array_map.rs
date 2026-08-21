@@ -338,8 +338,8 @@ pub mod non_typed {
     #[derive(Clone)]
     pub struct ChunkedArrayMap<K, V> {
         chunk_size: usize,
-        keys: Vec<K>,
-        values: Vec<V>,
+        pub(crate) keys: Vec<K>,
+        pub(crate) values: Vec<V>,
         table: HashTable<usize>,
     }
 

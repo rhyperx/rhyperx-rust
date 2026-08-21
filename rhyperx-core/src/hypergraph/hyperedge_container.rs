@@ -11,11 +11,11 @@ where
 
     fn remove(&mut self, nodes: &[T]) -> Option<W>;
 
-    fn get(&self, nodes: &[T]) -> Option<HxUnsizedRef<T, W>>;
+    fn get(&self, nodes: &[T]) -> Option<HxUnsizedRef<'_, T, W>>;
 
     /// # Safety:
     /// It should be noted that modifying the nodes of a hyperedge can lead to internal state corruption
-    fn get_mut(&mut self, nodes: &[T]) -> Option<HxUnsizedRefMut<T, W>>;
+    fn get_mut(&mut self, nodes: &[T]) -> Option<HxUnsizedRefMut<'_, T, W>>;
 
     fn contains(&self, edge: &[T]) -> bool;
 
@@ -33,8 +33,12 @@ where
         T: 'a,
         W: 'a;
 
-    fn retain(&mut self, f: impl FnMut(&HxUnsizedRef<'_, T, W>) -> bool);
+    /// Returns the nodes as a flat array;
+    fn take_flat_nodes(&mut self) -> Vec<T>;
 
+    fn take_weights(&mut self) -> Vec<W>;
+
+    fn retain(&mut self, f: impl FnMut(&HxUnsizedRef<'_, T, W>) -> bool);
 }
 
 pub struct HxVecStore<T, W> {
@@ -85,7 +89,7 @@ where
         None
     }
 
-    fn get(&self, nodes: &[T]) -> Option<HxUnsizedRef<T, W>> {
+    fn get(&self, nodes: &[T]) -> Option<HxUnsizedRef<'_, T, W>> {
         for i in 0..self.weights.len() {
             let n = nodes.len();
             let start = i * n;
@@ -102,7 +106,7 @@ where
         None
     }
 
-    fn get_mut(&mut self, nodes: &[T]) -> Option<HxUnsizedRefMut<T, W>> {
+    fn get_mut(&mut self, nodes: &[T]) -> Option<HxUnsizedRefMut<'_, T, W>> {
         for i in 0..self.weights.len() {
             let n = nodes.len();
             let start = i * n;
@@ -189,6 +193,14 @@ where
         self.nodes.truncate(write_idx * n);
         self.weights.truncate(write_idx);
     }
+
+    fn take_flat_nodes(&mut self) -> Vec<T> {
+        std::mem::take(&mut self.nodes)
+    }
+
+    fn take_weights(&mut self) -> Vec<W> {
+        std::mem::take(&mut self.weights)
+    }
 }
 
 impl<T, W> HyperedgeContainer<T, W> for HxSetStore<T, W>
@@ -210,14 +222,14 @@ where
         self.container.remove(nodes)
     }
 
-    fn get(&self, nodes: &[T]) -> Option<HxUnsizedRef<T, W>> {
+    fn get(&self, nodes: &[T]) -> Option<HxUnsizedRef<'_, T, W>> {
         match self.container.get_key_value(nodes) {
             Some((nodes, w)) => Some(HxUnsizedRef::new(nodes, w)),
             None => None,
         }
     }
 
-    fn get_mut(&mut self, nodes: &[T]) -> Option<HxUnsizedRefMut<T, W>> {
+    fn get_mut(&mut self, nodes: &[T]) -> Option<HxUnsizedRefMut<'_, T, W>> {
         match self.container.get_key_value_mut(nodes) {
             Some((nodes, w)) => Some(HxUnsizedRefMut::new(nodes, w)),
             None => None,
@@ -257,5 +269,13 @@ where
             let hx_ref = HxUnsizedRef::new(nodes, weight);
             f(&hx_ref)
         });
+    }
+
+    fn take_flat_nodes(&mut self) -> Vec<T> {
+        std::mem::take(&mut self.container.keys)
+    }
+
+    fn take_weights(&mut self) -> Vec<W> {
+        std::mem::take(&mut self.container.values)
     }
 }

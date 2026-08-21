@@ -55,6 +55,12 @@ where
         self.m
     }
 
+    pub fn edges_count(&self, order: usize) -> usize {
+        self.edges
+            .get(&order)
+            .map_or(0, |container| container.len())
+    }
+
     fn update_n(nodes: &mut HashMap<T, usize>, tot_n: &mut usize, edge: &[T], add: bool) {
         let inc = if add { 1 } else { -1 };
 
@@ -275,6 +281,8 @@ where
         }
     }
 
+    /// Returns an iterator over the sizes of hyperedges in the hypergraph, sorted in ascending
+    /// order.
     pub fn iter_hg_sizes(&self) -> impl Iterator<Item = usize> {
         let mut sorted_keys = self.edges.keys().copied().collect::<Vec<_>>();
         sorted_keys.sort_unstable();
@@ -293,7 +301,7 @@ where
         size: usize,
     ) -> impl Iterator<Item = HxSizedRef<'_, N, T, W>> {
         self.edges
-            .get(&size)
+            .get(&N)
             .into_iter()
             .flat_map(|container| container.iter())
             .map(|hx_ref| hx_ref.into_sized_unchecked())

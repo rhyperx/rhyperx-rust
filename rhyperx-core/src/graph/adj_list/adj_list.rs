@@ -420,7 +420,6 @@ define_py_wrapper!(WeightedDirectedAdjSet, AdjSet<NodeWeight, Directed, WithInci
 #[cfg(feature = "bindings")]
 #[hoist_mod]
 pub mod bindings {
-    
 
     #[derive(FromPyObject)]
     pub enum PyUndirectedAdjList<'py> {
