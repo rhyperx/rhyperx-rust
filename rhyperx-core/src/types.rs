@@ -1,12 +1,12 @@
 use std::hash::Hash;
 
-pub trait NodeId: Clone + Copy + Hash + Eq + Ord {
+pub trait NodeId: Clone + Copy + Hash + Eq + Ord + Default {
     fn as_usize(&self) -> usize;
     fn from_usize(id: usize) -> Self;
     fn zero() -> Self;
 }
 
-pub trait EdgeId: Clone + Copy + Hash + Eq + Ord {
+pub trait EdgeId: Clone + Copy + Hash + Eq + Ord + Default {
     fn as_usize(&self) -> usize;
     fn from_usize(id: usize) -> Self;
     fn zero() -> Self;

@@ -342,10 +342,6 @@ where
         })
     }
 
-    // pub fn iter_all_incident_edges_mut(&mut self) -> impl Iterator<Item = &mut Vec<E>> {
-    //     self.adj.iter_mut()
-    // }
-
     // /// Gets the oriented adjacency list following a provided node ordering.
     // /// An hyperedge with nodes u, v, ..., z will be incident only to its minimum node.
     // pub fn get_oriented(&self, pos: &[usize]) -> Self
