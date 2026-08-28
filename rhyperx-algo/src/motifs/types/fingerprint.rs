@@ -1,5 +1,5 @@
 use crate::CompactMotif;
-use crate::bin_store::BinStore;
+use crate::collections::BinStore;
 use hashbrown::HashSet;
 use std::fmt::Debug;
 use std::hash::Hash;

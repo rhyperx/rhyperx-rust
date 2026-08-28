@@ -1,5 +1,3 @@
-use crate::types::NodeId;
-
 /// Efficiently computes the common elements shared by two sorted lists.
 /// Time Complexity: O(deg(u) + deg(v))
 pub fn common_neighbors_sorted_list<'a, T: Eq + Ord>(a: &'a [T], b: &'a [T]) -> Vec<&'a T> {

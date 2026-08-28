@@ -770,10 +770,10 @@ pub struct CompactMotifCombinationsIterator<
 #[macro_export]
 macro_rules! CompactMotif {
     (2) => {
-        $crate::bin_store::CompactMotif::<u8, 2, { (1 << 2) - 1 }, 1, 2>
+        $crate::motifs::types::CompactMotif::<u8, 2, { (1 << 2) - 1 }, 1, 2>
     };
     (3) => {
-        $crate::bin_store::CompactMotif::<
+        $crate::motifs::types::CompactMotif::<
             u8,
             3,
             { (1 << 3) - 1 },
@@ -782,7 +782,7 @@ macro_rules! CompactMotif {
         >
     };
     (4) => {
-        $crate::bin_store::CompactMotif::<
+        $crate::motifs::types::CompactMotif::<
             u16,
             4,
             { (1 << 4) - 1 },
@@ -791,7 +791,7 @@ macro_rules! CompactMotif {
         >
     };
     (5) => {
-        $crate::bin_store::CompactMotif::<
+        $crate::motifs::types::CompactMotif::<
             u32,
             5,
             { (1 << 5) - 1 },
@@ -800,7 +800,7 @@ macro_rules! CompactMotif {
         >
     };
     (6) => {
-        $crate::bin_store::CompactMotif::<
+        $crate::motifs::types::CompactMotif::<
             u64,
             6,
             { (1 << 6) - 1 },
@@ -809,7 +809,7 @@ macro_rules! CompactMotif {
         >
     };
     (7) => {
-        $crate::bin_store::CompactMotif::<
+        $crate::motifs::types::CompactMotif::<
             u128,
             7,
             { (1 << 7) - 1 },
@@ -818,7 +818,7 @@ macro_rules! CompactMotif {
         >
     };
     (8) => {
-        $crate::bin_store::CompactMotif::<
+        $crate::motifs::types::CompactMotif::<
             u128,
             8,
             { (1 << 8) - 1 },

@@ -2,7 +2,9 @@ use hashbrown::HashMap;
 
 use crate::{
     error::HypergraphError,
-    hyperedge::{HxSizedRef, HxSizedRefMut, HxUnsizedRef, HxUnsizedRefMut, SizedHx, UnsizedHx},
+    hypergraph::hyperedge::{
+        HxSizedRef, HxSizedRefMut, HxUnsizedRef, HxUnsizedRefMut, SizedHx, UnsizedHx,
+    },
     types::{EdgeId, NodeId},
 };
 

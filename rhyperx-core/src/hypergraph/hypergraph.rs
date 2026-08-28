@@ -2,12 +2,11 @@ use std::collections::HashSet;
 
 use hashbrown::HashMap;
 
-use crate::{
-    error::HypergraphError,
+use crate::hypergraph::{
     hyperedge::{HxSizedRef, HxSizedRefMut, HxUnsizedRef, HxUnsizedRefMut, SizedHx, UnsizedHx},
     hyperedge_container::HyperedgeContainer,
-    types::NodeId,
 };
+use crate::{error::HypergraphError, types::NodeId};
 
 #[inline(always)]
 fn find_dup_sorted<T: NodeId>(nodes: &[T]) -> Option<T> {
@@ -18,6 +17,10 @@ fn find_dup_sorted<T: NodeId>(nodes: &[T]) -> Option<T> {
 }
 
 #[derive(Clone)]
+#[cfg_attr(
+    feature = "serialize",
+    derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)
+)]
 pub struct Hypergraph<T, W, C>
 where
     T: NodeId,

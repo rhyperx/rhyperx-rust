@@ -905,7 +905,11 @@ dependencies = [
  "duplicate",
  "foldhash",
  "hashbrown",
+ "paste",
+ "rhyperx-core",
  "rhyperx-macros",
+ "rkyv",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -915,6 +919,7 @@ dependencies = [
  "foldhash",
  "hashbrown",
  "num-traits",
+ "ouroboros",
  "rkyv",
  "thiserror 2.0.20",
 ]

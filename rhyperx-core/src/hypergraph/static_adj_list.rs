@@ -1,6 +1,6 @@
 use crate::{
-    hyperedge::HxUnsizedRef,
-    hyperedge_container::HyperedgeContainer,
+    hypergraph::hyperedge::HxUnsizedRef,
+    hypergraph::hyperedge_container::HyperedgeContainer,
     hypergraph::hypergraph::Hypergraph,
     misc::order::{OrderAndPos, OrderType},
     types::{EdgeId, NodeId},
@@ -8,6 +8,10 @@ use crate::{
 
 /// Stores information about where edges live inside the csr representation
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(
+    feature = "serialize",
+    derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)
+)]
 pub struct GlobalBucketInfo {
     /// Number of edges in the bucket
     pub(crate) len: usize,
@@ -24,6 +28,10 @@ pub struct GlobalBucketInfo {
 
 /// Stores information about buckets vertex-wise
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(
+    feature = "serialize",
+    derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)
+)]
 pub struct VertexBucketInfo {
     /// Number of edges ids in the bucket
     pub(crate) len: usize,
@@ -38,6 +46,10 @@ pub struct VertexBucketInfo {
 /// Stores information about incident edges for each vertex. The edge ids are stored in increasing
 /// order of their order
 #[derive(Clone, Debug)]
+#[cfg_attr(
+    feature = "serialize",
+    derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)
+)]
 pub struct VertexInfo<E: EdgeId> {
     /// The incident edge ids for the vertex, sorted by increasing order
     pub(crate) edge_ids: Vec<E>,
@@ -48,6 +60,10 @@ pub struct VertexInfo<E: EdgeId> {
 
 /// Adj list with immutable topology i.e. only weight can be modified. That is the fastest and most memory efficient out of the 3 structs. This is most likely the best fit to submit to complex algorithms
 #[derive(Clone)]
+#[cfg_attr(
+    feature = "serialize",
+    derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)
+)]
 pub struct StaticAdjList<N, E, W>
 where
     N: NodeId,

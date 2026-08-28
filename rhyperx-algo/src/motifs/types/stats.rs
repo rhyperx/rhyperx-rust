@@ -24,7 +24,13 @@ pub struct EnumerationStats {
 
 impl EnumerationStats {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            total_count: 0,
+            connected_count: 0,
+            distinct_fingerprints: 0,
+            elapsed_time: Duration::new(0, 0),
+            clashing_buckets_count: 0,
+        }
     }
 }
 
@@ -116,42 +122,6 @@ impl Debug for MotifStats {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum SPStrategy {
-    ShuffleWeights(),
-    ShuffleEdges(usize),
-    ShuffleBoth(usize),
-}
-
-impl SPStrategy {
-    pub fn apply<W>(&self, adj: &mut HyperAdjList<W>) {
-        match self {
-            SPStrategy::ShuffleWeights() => shuffle_weights(adj),
-            SPStrategy::ShuffleEdges(iterations) => shuffle_edges(adj, *iterations),
-            SPStrategy::ShuffleBoth(iterations) => {
-                shuffle_weights(adj);
-                shuffle_edges(adj, *iterations);
-            }
-        }
-    }
-}
-
-impl Display for SPStrategy {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SPStrategy::ShuffleWeights() => write!(f, "ShuffleWeights"),
-            SPStrategy::ShuffleEdges(iterations) => write!(f, "ShuffleEdges({})", iterations),
-            SPStrategy::ShuffleBoth(iterations) => write!(f, "ShuffleBoth({})", iterations),
-        }
-    }
-}
-
-impl Debug for SPStrategy {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{}", self)
-    }
-}
-
 pub struct SignificanceProfile {
     pub count: f64,
 
@@ -191,3 +161,39 @@ impl Debug for SignificanceProfile {
         writeln!(f, "{}", self)
     }
 }
+
+// #[derive(Clone, Copy, PartialEq, Eq)]
+// pub enum SPStrategy {
+//     ShuffleWeights(),
+//     ShuffleEdges(usize),
+//     ShuffleBoth(usize),
+// }
+//
+// impl SPStrategy {
+//     pub fn apply<W>(&self, adj: &mut HyperAdjList<W>) {
+//         match self {
+//             SPStrategy::ShuffleWeights() => shuffle_weights(adj),
+//             SPStrategy::ShuffleEdges(iterations) => shuffle_edges(adj, *iterations),
+//             SPStrategy::ShuffleBoth(iterations) => {
+//                 shuffle_weights(adj);
+//                 shuffle_edges(adj, *iterations);
+//             }
+//         }
+//     }
+// }
+//
+// impl Display for SPStrategy {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         match self {
+//             SPStrategy::ShuffleWeights() => write!(f, "ShuffleWeights"),
+//             SPStrategy::ShuffleEdges(iterations) => write!(f, "ShuffleEdges({})", iterations),
+//             SPStrategy::ShuffleBoth(iterations) => write!(f, "ShuffleBoth({})", iterations),
+//         }
+//     }
+// }
+//
+// impl Debug for SPStrategy {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         writeln!(f, "{}", self)
+//     }
+// }

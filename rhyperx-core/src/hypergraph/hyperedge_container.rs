@@ -41,12 +41,22 @@ where
     fn retain(&mut self, f: impl FnMut(&HxUnsizedRef<'_, T, W>) -> bool);
 }
 
+#[derive(Clone)]
+#[cfg_attr(
+    feature = "serialize",
+    derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)
+)]
 pub struct HxVecStore<T, W> {
     chunk_size: usize,
     nodes: Vec<T>,
     weights: Vec<W>,
 }
 
+#[derive(Clone)]
+#[cfg_attr(
+    feature = "serialize",
+    derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)
+)]
 pub struct HxSetStore<T, W> {
     container: ChunkedArrayMap<T, W>,
 }

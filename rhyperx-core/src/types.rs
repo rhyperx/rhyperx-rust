@@ -1,6 +1,6 @@
 use std::hash::Hash;
 
-pub trait NodeId: Clone + Copy + Hash + Eq + Ord + Default {
+pub trait NodeId: Clone + Copy + Hash + Eq + Ord + Default + std::fmt::Debug {
     fn as_usize(&self) -> usize;
     fn from_usize(id: usize) -> Self;
     fn zero() -> Self;

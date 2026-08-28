@@ -27,6 +27,7 @@ env_logger = "0.11.11"
 inherent = "1.0.13"
 duplicate = "2.0.1"
 better_default = "1.0.5"
+ouroboros = "0.18.5"
 rkyv = { version = "0.8.15", features = ["hashbrown-0_17"] }
 
 # pyo3 = {version = "0.29.0", features = ["auto-initialize", "multiple-pymethods", "hashbrown", "anyhow"]}

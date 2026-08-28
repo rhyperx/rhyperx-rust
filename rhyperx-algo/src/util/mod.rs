@@ -1,8 +1,7 @@
 pub mod const_operations;
-// pub mod misc;
+pub mod misc;
 pub mod permutations;
-// pub mod sorting_network;
-// pub mod submodules_initializer;
+pub mod sorting_network;
 
 #[allow(dead_code)]
 pub fn timed_custom_printer(_default_format: &str, f_name: &str, duration: std::time::Duration) {

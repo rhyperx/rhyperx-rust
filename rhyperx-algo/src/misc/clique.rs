@@ -1,13 +1,8 @@
 use hashbrown::{HashMap, HashSet};
+use rhyperx_core::graph::adj_list::{AdjList, Undirected, traits::Incidence};
 use std::hash::Hash;
 
-use crate::{
-    misc::neighbors_sorted_list_cloj,
-    types::{
-        NodeId,
-        adj_list::{AdjList, common::Undirected, traits::Incidence},
-    },
-};
+use crate::misc::neighbors_sorted_list_cloj;
 
 /// Returns all maximal cliques in the undirected graph.
 ///

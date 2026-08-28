@@ -1,39 +1,46 @@
+#[cfg(feature = "serialize")]
 use rkyv::{Archive, Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
 use crate::{error::HypergraphError, types::NodeId};
 
-#[derive(Archive, Deserialize, Serialize, Debug, Clone)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serialize", derive(Archive, Deserialize, Serialize))]
 pub struct SizedHx<const N: usize, T: NodeId, W> {
     pub nodes: [T; N],
     pub weight: W,
 }
 
-#[derive(Archive, Deserialize, Serialize, Debug, Clone)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serialize", derive(Archive, Deserialize, Serialize))]
 pub struct UnsizedHx<T: NodeId, W> {
     pub nodes: Vec<T>,
     pub weight: W,
 }
 
-#[derive(Archive, Deserialize, Serialize, Debug, Clone)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serialize", derive(Archive, Deserialize, Serialize))]
 pub struct HxSizedRef<'a, const N: usize, T, W> {
     pub nodes: &'a [T; N],
     pub weight: &'a W,
 }
 
-#[derive(Archive, Deserialize, Serialize, Debug)]
+#[derive(Debug)]
+#[cfg_attr(feature = "serialize", derive(Archive, Deserialize, Serialize))]
 pub struct HxSizedRefMut<'a, const N: usize, T, W> {
     pub nodes: &'a mut [T; N],
     pub weight: &'a mut W,
 }
 
-#[derive(Archive, Deserialize, Serialize, Debug, Clone)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serialize", derive(Archive, Deserialize, Serialize))]
 pub struct HxUnsizedRef<'a, T, W> {
     pub nodes: &'a [T],
     pub weight: &'a W,
 }
 
-#[derive(Archive, Deserialize, Serialize, Debug)]
+#[derive(Debug)]
+#[cfg_attr(feature = "serialize", derive(Archive, Deserialize, Serialize))]
 pub struct HxUnsizedRefMut<'a, T, W> {
     pub nodes: &'a mut [T],
     pub weight: &'a mut W,
