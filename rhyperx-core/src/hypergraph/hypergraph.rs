@@ -298,7 +298,6 @@ where
 
     pub fn iter_edges_sized<const N: usize>(
         &self,
-        size: usize,
     ) -> impl Iterator<Item = HxSizedRef<'_, N, T, W>> {
         self.edges
             .get(&N)

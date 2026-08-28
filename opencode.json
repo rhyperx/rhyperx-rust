@@ -1,0 +1,26 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  "lsp": true,
+
+  "mcp": {
+    "rust": {
+      "type": "local",
+      "command": ["rust-mcp-server"],
+      "enabled": true
+    }
+  },
+
+  "permission": {
+    "bash": {
+      "git status*": "allow",
+      "git diff*": "allow",
+      "git log*": "allow",
+      "git show*": "allow"
+    },
+
+    "edit": "allow",
+    "write": "allow",
+    "lsp": "allow"
+  }
+}

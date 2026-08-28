@@ -1,5 +1,8 @@
 use crate::types::NodeId;
-use std::marker::PhantomData;
+use std::{
+    marker::PhantomData,
+    ops::{Index, IndexMut},
+};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Order<N: NodeId>(Vec<N>);
@@ -27,6 +30,20 @@ impl<N: NodeId> Order<N> {
     }
 }
 
+impl<N: NodeId> Index<usize> for Order<N> {
+    type Output = N;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl<N: NodeId> IndexMut<usize> for Order<N> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.0[index]
+    }
+}
+
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Pos(Vec<usize>);
 
@@ -49,20 +66,38 @@ impl Pos {
     }
 }
 
+impl Index<usize> for Pos {
+    type Output = usize;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl IndexMut<usize> for Pos {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.0[index]
+    }
+}
+
 pub trait OrderType {
     const ORDER_TYPE: &'static str;
 }
 
 pub struct Ascending;
+
 pub struct Descending;
+
 pub struct Other;
 
 impl OrderType for Ascending {
     const ORDER_TYPE: &'static str = "Ascending";
 }
+
 impl OrderType for Descending {
     const ORDER_TYPE: &'static str = "Descending";
 }
+
 impl OrderType for Other {
     const ORDER_TYPE: &'static str = "Other";
 }

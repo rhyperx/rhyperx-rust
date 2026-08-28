@@ -2,6 +2,7 @@ use crate::{
     hyperedge::HxUnsizedRef,
     hyperedge_container::HyperedgeContainer,
     hypergraph::hypergraph::Hypergraph,
+    misc::order::{OrderAndPos, OrderType},
     types::{EdgeId, NodeId},
 };
 
@@ -342,37 +343,63 @@ where
         })
     }
 
-    // /// Gets the oriented adjacency list following a provided node ordering.
-    // /// An hyperedge with nodes u, v, ..., z will be incident only to its minimum node.
-    // pub fn get_oriented(&self, pos: &[usize]) -> Self
-    // where
-    //     C: Clone,
-    //     W: Clone,
-    // {
-    //     let mut cached_min = vec![usize::MAX; self.m()];
-    //     let mut oriented_adj = self.adj.clone();
-    //
-    //     for (u, incident_edges) in oriented_adj.iter_mut().enumerate() {
-    //         incident_edges.retain(|&edge_id| {
-    //             let id_usize = edge_id.as_usize();
-    //             let edge = self.get_edge_by_id_unchecked(edge_id);
-    //
-    //             let min_node = if cached_min[id_usize] == usize::MAX {
-    //                 let min = *edge.nodes.iter().min_by_key(|n| pos[n.as_usize()]).unwrap();
-    //                 cached_min[id_usize] = min.as_usize();
-    //                 min.as_usize()
-    //             } else {
-    //                 cached_min[id_usize]
-    //             };
-    //
-    //             u == min_node
-    //         });
-    //     }
-    //
-    //     // Re-build or construct the oriented static adj list from the filtered adjacency
-    //     // (Implementation depends on whether you want a new StaticAdjList instance built from scratch or filtered in place).
-    //     todo!()
-    // }
+    /// Gets the oriented adjacency list following a provided node ordering.
+    /// An hyperedge with nodes u, v, ..., z will be incident only to its minimum node.
+    pub fn orient<O: OrderType>(&mut self, order: &OrderAndPos<N, O>) {
+        let mut minimums = vec![usize::MAX; self.m()];
+        for (edge_id, edge) in self.iter_edges() {
+            minimums[edge_id.as_usize()] = edge
+                .nodes
+                .iter()
+                .min_by_key(|n| order.pos[n.as_usize()])
+                .unwrap()
+                .as_usize();
+        }
+
+        for (node_id, v_info) in self.adj.iter_mut().enumerate() {
+            let mut ids_retain_idx = 0;
+            let mut ids_read_idx = 0;
+
+            let mut buckets_retain_idx = 0;
+            let mut buckets_read_idx = 0;
+
+            let mut idx_in_bucket = 0;
+
+            let mut retained_in_bucket_count = 0;
+
+            while ids_read_idx < v_info.edge_ids.len() {
+                let edge_id = v_info.edge_ids[ids_read_idx].as_usize();
+
+                // retain
+                if minimums[edge_id] == node_id {
+                    v_info.edge_ids[ids_retain_idx] = v_info.edge_ids[ids_read_idx];
+                    retained_in_bucket_count += 1;
+                    ids_retain_idx += 1;
+                }
+
+                idx_in_bucket += 1;
+                if idx_in_bucket == v_info.bucket_infos[buckets_read_idx].len {
+                    if retained_in_bucket_count > 0 {
+                        v_info.bucket_infos[buckets_retain_idx] = VertexBucketInfo {
+                            len: retained_in_bucket_count,
+                            order: v_info.bucket_infos[buckets_read_idx].order,
+                            position: ids_retain_idx - retained_in_bucket_count,
+                        };
+                        buckets_retain_idx += 1;
+                    }
+
+                    buckets_read_idx += 1;
+                    retained_in_bucket_count = 0;
+                    idx_in_bucket = 0;
+                }
+
+                ids_read_idx += 1;
+            }
+
+            v_info.edge_ids.truncate(ids_retain_idx);
+            v_info.bucket_infos.truncate(buckets_retain_idx);
+        }
+    }
 }
 
 /// Iterator over all edges in the graph

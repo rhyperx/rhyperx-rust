@@ -6,3 +6,8 @@ license = "MIT OR Apache-2.0"
 description = "All non-trivial algorithms implemented in the rhyperx hypergraph library."
 
 [dependencies]
+duplicate = { workspace = true }
+foldhash = { workspace = true }
+hashbrown = { workspace = true }
+rhyperx-macros = { workspace = true }
+bitvec = "1.1.1"

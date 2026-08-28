@@ -17,7 +17,7 @@ pub trait HypergraphBase {
     fn iter_edges(
         &self,
         node: Self::NodeIdType,
-    ) -> impl Iterator<Item = HxUnsizedRef<Self::NodeIdType, Self::WeightType>> + '_;
+    ) -> impl Iterator<Item = HxUnsizedRef<'_, Self::NodeIdType, Self::WeightType>> + '_;
 
     fn iter_hg_sizes(&self) -> impl Iterator<Item = usize>;
 

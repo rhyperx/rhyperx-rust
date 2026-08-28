@@ -3,7 +3,7 @@ pub mod misc;
 
 #[cfg(test)]
 pub mod tests;
-// pub mod graph;
+pub mod graph;
 pub mod hypergraph;
 pub mod types;
 
