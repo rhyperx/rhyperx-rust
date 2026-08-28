@@ -6,9 +6,17 @@ use std::ops::{Index, IndexMut, RangeBounds};
 use foldhash::fast::FixedState;
 use hashbrown::{HashMap, HashSet, hash_map::Entry};
 
-use super::traits::{AdjConfig, Direction, Neighbor, NeighborContainer};
+use super::traits::Direction;
 use crate::check_bounds_debug;
 use crate::types::NodeId;
+
+/// Configuration for adjacency lists without edge IDs.
+pub trait AdjConfig {
+    type Weight;
+    type Dir: Direction;
+    type NodeId: crate::types::NodeId;
+    type Container: NeighborContainer<WeightType = Self::Weight, NodeType = Self::NodeId>;
+}
 
 #[derive(Clone)]
 #[cfg_attr(
@@ -255,6 +263,7 @@ impl<C: AdjConfig> AdjBase<C> {
         if !C::Dir::IS_DIRECTED {
             count /= 2;
         }
+        self.m -= count;
 
         count
     }
@@ -291,7 +300,7 @@ pub type AdjList<N, W, D> = AdjBase<(N, W, D, Vec<Neighbor<N, W>>)>;
 /// HashMap-backed adj set (no edge IDs).
 pub type AdjSet<N, W, D> = AdjBase<(N, W, D, HashMap<N, W, FixedState>)>;
 
-impl<N: NodeId + Debug, W: Clone, D: Direction> From<AdjSet<N, W, D>> for AdjList<N, W, D> {
+impl<N: NodeId, W: Clone, D: Direction> From<AdjSet<N, W, D>> for AdjList<N, W, D> {
     fn from(value: AdjSet<N, W, D>) -> Self {
         let mut rv = Self::with_nodes(value.n());
         for (u, container) in value.adj.into_iter().enumerate() {
@@ -303,7 +312,7 @@ impl<N: NodeId + Debug, W: Clone, D: Direction> From<AdjSet<N, W, D>> for AdjLis
     }
 }
 
-impl<N: NodeId + Debug, W: Clone, D: Direction> From<AdjList<N, W, D>> for AdjSet<N, W, D> {
+impl<N: NodeId, W: Clone, D: Direction> From<AdjList<N, W, D>> for AdjSet<N, W, D> {
     fn from(value: AdjList<N, W, D>) -> Self {
         let mut rv = Self::with_nodes(value.n());
         for (u, container) in value.adj.into_iter().enumerate() {
@@ -321,4 +330,87 @@ impl<N: NodeId, W, D: Direction> AdjList<N, W, D> {
             self.adj[u].sort_unstable();
         }
     }
+}
+
+// ── Neighbor type
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(
+    feature = "serialize",
+    derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)
+)]
+pub struct Neighbor<N, W> {
+    pub node: N,
+    pub weight: W,
+}
+
+impl<N: Eq, W> PartialEq for Neighbor<N, W> {
+    fn eq(&self, other: &Self) -> bool {
+        self.node == other.node
+    }
+}
+
+impl<N: Eq, W> Eq for Neighbor<N, W> {}
+
+impl<N: Ord, W> PartialOrd for Neighbor<N, W> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.node.cmp(&other.node))
+    }
+}
+
+impl<N: Ord, W> Ord for Neighbor<N, W> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.node.cmp(&other.node)
+    }
+}
+
+// ── NeighborRef type
+pub struct NeighborRef<'a, N, W> {
+    pub node: &'a N,
+    pub weight: &'a W,
+}
+
+pub struct NeighborRefMut<'a, N, W> {
+    pub node: &'a N,
+    pub weight: &'a mut W,
+}
+
+impl<'a, N, W> Clone for NeighborRef<'a, N, W> {
+    fn clone(&self) -> Self {
+        Self {
+            node: self.node,
+            weight: self.weight,
+        }
+    }
+}
+
+impl<'a, N, W> Copy for NeighborRef<'a, N, W> {}
+
+// ── NeighborContainer
+
+pub trait NeighborContainer {
+    type WeightType;
+    type NodeType: crate::types::NodeId;
+
+    const SUPPORTS_MULTIEDGES: bool;
+
+    fn empty() -> Self;
+    fn len(&self) -> usize;
+
+    fn insert(&mut self, node: Self::NodeType, weight: Self::WeightType) -> bool;
+
+    fn iter_neighbors(
+        &self,
+    ) -> impl Iterator<Item = NeighborRef<'_, Self::NodeType, Self::WeightType>>;
+
+    fn iter_neighbors_mut(
+        &mut self,
+    ) -> impl Iterator<Item = NeighborRefMut<'_, Self::NodeType, Self::WeightType>>;
+
+    fn into_iter_neighbors(
+        self,
+    ) -> impl Iterator<Item = Neighbor<Self::NodeType, Self::WeightType>>;
+
+    fn retain<F>(&mut self, f: F)
+    where
+        F: FnMut(NeighborRef<Self::NodeType, Self::WeightType>) -> bool;
 }

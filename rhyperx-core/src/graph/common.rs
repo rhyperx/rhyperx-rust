@@ -1,10 +1,11 @@
 use foldhash::fast::FixedState;
 use hashbrown::HashMap;
 
-use super::traits::{
-    AdjConfig, Direction, IncConfig, IncNeighbor, IncNeighborContainer, IncNeighborRef,
-    IncNeighborRefMut, Neighbor, NeighborContainer, NeighborRef, NeighborRefMut,
+use super::adjacency::{AdjConfig, Neighbor, NeighborContainer, NeighborRef, NeighborRefMut};
+use super::incidence::{
+    IncConfig, IncNeighbor, IncNeighborContainer, IncNeighborRef, IncNeighborRefMut,
 };
+use super::traits::Direction;
 use crate::types::{EdgeId, NodeId};
 
 #[macro_export]

@@ -1,206 +1,325 @@
-use crate::types;
+use super::adjacency::{AdjBase, AdjConfig, NeighborContainer, NeighborRef};
+use super::incidence::{IncBase, IncConfig, IncNeighborContainer, IncNeighborRef};
+use crate::types::{EdgeId, NodeId};
 
 pub trait Direction {
     const IS_DIRECTED: bool;
 }
 
-/// Configuration for adjacency lists without edge IDs.
-pub trait AdjConfig {
-    type Weight;
-    type Dir: Direction;
-    type NodeId: types::NodeId;
-    type Container: NeighborContainer<WeightType = Self::Weight, NodeType = Self::NodeId>;
-}
+// ── Graph traits ──────────────────────────────────
 
-/// Configuration for adjacency lists with edge IDs.
-pub trait IncConfig {
-    type Weight;
-    type Dir: Direction;
-    type NodeId: types::NodeId;
-    type EdgeId: types::EdgeId;
-    type Container: IncNeighborContainer<
-            WeightType = Self::Weight,
-            NodeType = Self::NodeId,
-            EdgeType = Self::EdgeId,
-        >;
-}
-
-// ── Neighbor (no edge ID) ─────────────────────────
-
-#[derive(Debug, Clone, Copy)]
-#[cfg_attr(
-    feature = "serialize",
-    derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)
-)]
-pub struct Neighbor<N, W> {
-    pub node: N,
-    pub weight: W,
-}
-
-impl<N: Eq, W> PartialEq for Neighbor<N, W> {
-    fn eq(&self, other: &Self) -> bool {
-        self.node == other.node
-    }
-}
-
-impl<N: Eq, W> Eq for Neighbor<N, W> {}
-
-impl<N: Ord, W> PartialOrd for Neighbor<N, W> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.node.cmp(&other.node))
-    }
-}
-
-impl<N: Ord, W> Ord for Neighbor<N, W> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.node.cmp(&other.node)
-    }
-}
-
-// ── IncNeighbor (with edge ID) ────────────────────
-
-#[derive(Debug, Clone, Copy)]
-#[cfg_attr(
-    feature = "serialize",
-    derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)
-)]
-pub struct IncNeighbor<N, W, E> {
-    pub node: N,
-    pub weight: W,
-    pub edge: E,
-}
-
-impl<N: Eq, W, E: Eq> PartialEq for IncNeighbor<N, W, E> {
-    fn eq(&self, other: &Self) -> bool {
-        self.node == other.node && self.edge == other.edge
-    }
-}
-
-impl<N: Eq, W, E: Eq> Eq for IncNeighbor<N, W, E> {}
-
-impl<N: Ord, W, E: Ord> PartialOrd for IncNeighbor<N, W, E> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.node.cmp(&other.node).then(self.edge.cmp(&other.edge)))
-    }
-}
-
-impl<N: Ord, W, E: Ord> Ord for IncNeighbor<N, W, E> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other).unwrap()
-    }
-}
-
-// ── Ref types for non-inc containers ──────────────
-
-pub struct NeighborRef<'a, N, W> {
-    pub node: &'a N,
-    pub weight: &'a W,
-}
-
-pub struct NeighborRefMut<'a, N, W> {
-    pub node: &'a N,
-    pub weight: &'a mut W,
-}
-
-impl<'a, N, W> Clone for NeighborRef<'a, N, W> {
-    fn clone(&self) -> Self {
-        Self {
-            node: self.node,
-            weight: self.weight,
-        }
-    }
-}
-
-impl<'a, N, W> Copy for NeighborRef<'a, N, W> {}
-
-// ── Ref types for inc containers ──────────────────
-
-pub struct IncNeighborRef<'a, N, W, E> {
-    pub node: &'a N,
-    pub weight: &'a W,
-    pub edge: &'a E,
-}
-
-pub struct IncNeighborRefMut<'a, N, W, E> {
-    pub node: &'a N,
-    pub weight: &'a mut W,
-    pub edge: &'a E,
-}
-
-impl<'a, N, W, E> Clone for IncNeighborRef<'a, N, W, E> {
-    fn clone(&self) -> Self {
-        Self {
-            node: self.node,
-            weight: self.weight,
-            edge: self.edge,
-        }
-    }
-}
-
-impl<'a, N, W, E> Copy for IncNeighborRef<'a, N, W, E> {}
-
-// ── NeighborContainer (no edge IDs) ───────────────
-
-pub trait NeighborContainer {
+/// Base methods supported by every graph representation.
+pub trait GraphBase {
+    type NodeIdType: NodeId;
     type WeightType;
-    type NodeType: types::NodeId;
+    type Dir: Direction;
 
     const SUPPORTS_MULTIEDGES: bool;
 
-    fn empty() -> Self;
-    fn len(&self) -> usize;
+    fn n(&self) -> usize;
+    fn m(&self) -> usize;
+}
 
-    fn insert(&mut self, node: Self::NodeType, weight: Self::WeightType) -> bool;
+/// Per-node neighbor retrieval.
+pub trait NeighborRetrieval: GraphBase {
+    fn degree(&self, node: Self::NodeIdType) -> usize;
 
-    fn iter_neighbors(
+    fn iter_neighbors(&self, node: Self::NodeIdType)
+    -> impl Iterator<Item = Self::NodeIdType> + '_;
+
+    fn iter_weighted_neighbors(
         &self,
-    ) -> impl Iterator<Item = NeighborRef<'_, Self::NodeType, Self::WeightType>>;
-
-    fn iter_neighbors_mut(
-        &mut self,
-    ) -> impl Iterator<Item = NeighborRefMut<'_, Self::NodeType, Self::WeightType>>;
-
-    fn into_iter_neighbors(
-        self,
-    ) -> impl Iterator<Item = Neighbor<Self::NodeType, Self::WeightType>>;
-
-    fn retain<F>(&mut self, f: F)
-    where
-        F: FnMut(NeighborRef<Self::NodeType, Self::WeightType>) -> bool;
+        node: Self::NodeIdType,
+    ) -> impl Iterator<Item = NeighborRef<'_, Self::NodeIdType, Self::WeightType>> + '_;
 }
 
-// ── IncNeighborContainer (with edge IDs) ──────────
+/// An edge with both endpoints and a reference to its weight.
+pub struct EdgeRef<'a, N, W> {
+    pub from: N,
+    pub to: N,
+    pub weight: &'a W,
+}
 
-pub trait IncNeighborContainer {
-    type WeightType;
-    type NodeType: types::NodeId;
-    type EdgeType: types::EdgeId;
+impl<N: Clone, W> Clone for EdgeRef<'_, N, W> {
+    fn clone(&self) -> Self {
+        Self {
+            from: self.from.clone(),
+            to: self.to.clone(),
+            weight: self.weight,
+        }
+    }
+}
 
-    const SUPPORTS_MULTIEDGES: bool;
+impl<N: Copy, W> Copy for EdgeRef<'_, N, W> {}
 
-    fn empty() -> Self;
-    fn len(&self) -> usize;
+/// Whole-graph edge iteration.
+pub trait EdgeIteration: GraphBase {
+    /// Iterates over logical edges; every parallel edge and self-loop is
+    /// yielded exactly once.
+    fn iter_edges(
+        &self,
+    ) -> impl Iterator<Item = EdgeRef<'_, Self::NodeIdType, Self::WeightType>> + '_;
+}
 
-    fn insert_inc(
+/// Graphs whose edges carry unique ids.
+pub trait EdgeIdGraph: GraphBase {
+    type EdgeIdType: EdgeId;
+
+    fn iter_incident_neighbors(
+        &self,
+        node: Self::NodeIdType,
+    ) -> impl Iterator<
+        Item = IncNeighborRef<'_, Self::NodeIdType, Self::WeightType, Self::EdgeIdType>,
+    > + '_;
+}
+
+/// Edge insertion; returns whether the edge count increased.
+pub trait InsertEdge: GraphBase {
+    fn insert_edge(
         &mut self,
-        node: Self::NodeType,
+        from: Self::NodeIdType,
+        to: Self::NodeIdType,
         weight: Self::WeightType,
-        edge: Self::EdgeType,
-    ) -> bool;
-
-    fn iter_neighbors_inc(
-        &self,
-    ) -> impl Iterator<Item = IncNeighborRef<'_, Self::NodeType, Self::WeightType, Self::EdgeType>>;
-
-    fn iter_neighbors_inc_mut(
-        &mut self,
-    ) -> impl Iterator<Item = IncNeighborRefMut<'_, Self::NodeType, Self::WeightType, Self::EdgeType>>;
-
-    fn into_iter_neighbors_inc(
-        self,
-    ) -> impl Iterator<Item = IncNeighbor<Self::NodeType, Self::WeightType, Self::EdgeType>>;
-
-    fn retain_inc<F>(&mut self, f: F)
+    ) -> bool
     where
-        F: FnMut(IncNeighborRef<Self::NodeType, Self::WeightType, Self::EdgeType>) -> bool;
+        Self::WeightType: Clone;
+}
+
+/// Edge insertion in graphs with edge ids; returns the id of the inserted edge.
+pub trait InsertEdgeWithId: EdgeIdGraph {
+    fn insert_edge(
+        &mut self,
+        from: Self::NodeIdType,
+        to: Self::NodeIdType,
+        weight: Self::WeightType,
+    ) -> Self::EdgeIdType
+    where
+        Self::WeightType: Clone;
+}
+
+/// Edge removal.
+pub trait RemoveEdge: GraphBase {
+    /// Removes every edge between `from` and `to`; returns how many were removed.
+    fn remove_edges_between(&mut self, from: Self::NodeIdType, to: Self::NodeIdType) -> usize;
+
+    fn remove_self_loops(&mut self) -> usize;
+}
+
+/// Multiedge queries and removal.
+pub trait MultiedgeOps: GraphBase {
+    fn count_multiedges(&self) -> usize;
+    fn has_multiedges(&self) -> bool;
+    fn remove_multiedges(&mut self) -> usize;
+}
+
+// ── AdjBase blanket impls ─────────────────────────
+
+impl<C: AdjConfig> GraphBase for AdjBase<C> {
+    type NodeIdType = C::NodeId;
+    type WeightType = C::Weight;
+    type Dir = C::Dir;
+
+    const SUPPORTS_MULTIEDGES: bool = C::Container::SUPPORTS_MULTIEDGES;
+
+    fn n(&self) -> usize {
+        AdjBase::n(self)
+    }
+
+    fn m(&self) -> usize {
+        AdjBase::m(self)
+    }
+}
+
+impl<C: AdjConfig> NeighborRetrieval for AdjBase<C> {
+    fn degree(&self, node: C::NodeId) -> usize {
+        self[node].len()
+    }
+
+    fn iter_neighbors(&self, node: C::NodeId) -> impl Iterator<Item = C::NodeId> + '_ {
+        self[node].iter_neighbors().map(|n| *n.node)
+    }
+
+    fn iter_weighted_neighbors(
+        &self,
+        node: C::NodeId,
+    ) -> impl Iterator<Item = NeighborRef<'_, C::NodeId, C::Weight>> + '_ {
+        self[node].iter_neighbors()
+    }
+}
+
+impl<C: AdjConfig> EdgeIteration for AdjBase<C> {
+    fn iter_edges(&self) -> impl Iterator<Item = EdgeRef<'_, C::NodeId, C::Weight>> + '_ {
+        self.iter_neighbors()
+            .enumerate()
+            .flat_map(|(u, container)| {
+                let mut self_loops_seen = 0usize;
+                container.iter_neighbors().filter_map(move |n| {
+                    let v = n.node.as_usize();
+                    let emit = if C::Dir::IS_DIRECTED || v > u {
+                        true
+                    } else if v == u {
+                        // Undirected self-loops are stored twice per logical edge,
+                        // except after `remove_multiedges` where only one copy is
+                        // left: emitting every other occurrence yields exactly one
+                        // edge per logical self-loop in both cases.
+                        self_loops_seen += 1;
+                        self_loops_seen % 2 == 1
+                    } else {
+                        false
+                    };
+                    emit.then(|| EdgeRef {
+                        from: C::NodeId::from_usize(u),
+                        to: *n.node,
+                        weight: n.weight,
+                    })
+                })
+            })
+    }
+}
+
+impl<C: AdjConfig> InsertEdge for AdjBase<C> {
+    fn insert_edge(&mut self, from: C::NodeId, to: C::NodeId, weight: C::Weight) -> bool
+    where
+        Self::WeightType: Clone,
+    {
+        let m_before = AdjBase::m(self);
+        AdjBase::insert_edge(self, from, to, weight);
+        AdjBase::m(self) > m_before
+    }
+}
+
+impl<C: AdjConfig> RemoveEdge for AdjBase<C> {
+    fn remove_edges_between(&mut self, from: C::NodeId, to: C::NodeId) -> usize {
+        AdjBase::remove_edges_between(self, from, to)
+    }
+
+    fn remove_self_loops(&mut self) -> usize {
+        AdjBase::remove_self_loops(self)
+    }
+}
+
+impl<C: AdjConfig> MultiedgeOps for AdjBase<C> {
+    fn count_multiedges(&self) -> usize {
+        AdjBase::count_multiedges(self)
+    }
+
+    fn has_multiedges(&self) -> bool {
+        AdjBase::has_multiedges(self)
+    }
+
+    fn remove_multiedges(&mut self) -> usize {
+        AdjBase::remove_multiedges(self)
+    }
+}
+
+// ── IncBase blanket impls ──────────────────────────
+
+impl<C: IncConfig> GraphBase for IncBase<C> {
+    type NodeIdType = C::NodeId;
+    type WeightType = C::Weight;
+    type Dir = C::Dir;
+
+    const SUPPORTS_MULTIEDGES: bool = C::Container::SUPPORTS_MULTIEDGES;
+
+    fn n(&self) -> usize {
+        IncBase::n(self)
+    }
+
+    fn m(&self) -> usize {
+        IncBase::m(self)
+    }
+}
+
+impl<C: IncConfig> NeighborRetrieval for IncBase<C> {
+    fn degree(&self, node: C::NodeId) -> usize {
+        self[node].len()
+    }
+
+    fn iter_neighbors(&self, node: C::NodeId) -> impl Iterator<Item = C::NodeId> + '_ {
+        self[node].iter_neighbors_inc().map(|n| *n.node)
+    }
+
+    fn iter_weighted_neighbors(
+        &self,
+        node: C::NodeId,
+    ) -> impl Iterator<Item = NeighborRef<'_, C::NodeId, C::Weight>> + '_ {
+        self[node].iter_neighbors_inc().map(|n| NeighborRef {
+            node: n.node,
+            weight: n.weight,
+        })
+    }
+}
+
+impl<C: IncConfig> EdgeIteration for IncBase<C> {
+    fn iter_edges(&self) -> impl Iterator<Item = EdgeRef<'_, C::NodeId, C::Weight>> + '_ {
+        self.iter_neighbors()
+            .enumerate()
+            .flat_map(|(u, container)| {
+                let mut self_loops_seen = 0usize;
+                container.iter_neighbors_inc().filter_map(move |n| {
+                    let v = n.node.as_usize();
+                    let emit = if C::Dir::IS_DIRECTED || v > u {
+                        true
+                    } else if v == u {
+                        // Undirected self-loops are stored twice per logical edge,
+                        // except after `remove_multiedges` where only one copy is
+                        // left: emitting every other occurrence yields exactly one
+                        // edge per logical self-loop in both cases.
+                        self_loops_seen += 1;
+                        self_loops_seen % 2 == 1
+                    } else {
+                        false
+                    };
+                    emit.then(|| EdgeRef {
+                        from: C::NodeId::from_usize(u),
+                        to: *n.node,
+                        weight: n.weight,
+                    })
+                })
+            })
+    }
+}
+
+impl<C: IncConfig> EdgeIdGraph for IncBase<C> {
+    type EdgeIdType = C::EdgeId;
+
+    fn iter_incident_neighbors(
+        &self,
+        node: C::NodeId,
+    ) -> impl Iterator<Item = IncNeighborRef<'_, C::NodeId, C::Weight, C::EdgeId>> + '_ {
+        self[node].iter_neighbors_inc()
+    }
+}
+
+impl<C: IncConfig> InsertEdgeWithId for IncBase<C> {
+    fn insert_edge(&mut self, from: C::NodeId, to: C::NodeId, weight: C::Weight) -> C::EdgeId
+    where
+        Self::WeightType: Clone,
+    {
+        IncBase::insert_edge(self, from, to, weight)
+    }
+}
+
+impl<C: IncConfig> RemoveEdge for IncBase<C> {
+    fn remove_edges_between(&mut self, from: C::NodeId, to: C::NodeId) -> usize {
+        IncBase::remove_edges_between(self, from, to)
+    }
+
+    fn remove_self_loops(&mut self) -> usize {
+        IncBase::remove_self_loops(self)
+    }
+}
+
+impl<C: IncConfig> MultiedgeOps for IncBase<C> {
+    fn count_multiedges(&self) -> usize {
+        IncBase::count_multiedges(self)
+    }
+
+    fn has_multiedges(&self) -> bool {
+        IncBase::has_multiedges(self)
+    }
+
+    fn remove_multiedges(&mut self) -> usize {
+        IncBase::remove_multiedges(self)
+    }
 }

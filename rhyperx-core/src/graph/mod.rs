@@ -7,3 +7,4 @@ pub use adjacency::*;
 pub use incidence::*;
 
 pub use common::*;
+pub use traits::*;

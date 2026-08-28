@@ -6,9 +6,22 @@ use std::ops::{Index, IndexMut, RangeBounds};
 use foldhash::fast::FixedState;
 use hashbrown::{HashMap, HashSet, hash_map::Entry};
 
-use super::traits::{Direction, IncConfig, IncNeighbor, IncNeighborContainer};
+use super::traits::Direction;
 use crate::check_bounds_debug;
 use crate::types::{EdgeId, NodeId};
+
+/// Configuration for adjacency lists with edge IDs.
+pub trait IncConfig {
+    type Weight;
+    type Dir: Direction;
+    type NodeId: crate::types::NodeId;
+    type EdgeId: crate::types::EdgeId;
+    type Container: IncNeighborContainer<
+            WeightType = Self::Weight,
+            NodeType = Self::NodeId,
+            EdgeType = Self::EdgeId,
+        >;
+}
 
 #[derive(Clone)]
 #[cfg_attr(
@@ -261,6 +274,7 @@ impl<C: IncConfig> IncBase<C> {
         if !C::Dir::IS_DIRECTED {
             count /= 2;
         }
+        self.m -= count;
 
         count
     }
@@ -334,4 +348,99 @@ impl<N: NodeId, W, D: Direction, E: EdgeId> IncList<N, W, D, E> {
             self.adj[u].sort_unstable();
         }
     }
+}
+
+// ── IncNeighbor (with edge ID) ────────────────────
+
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(
+    feature = "serialize",
+    derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)
+)]
+pub struct IncNeighbor<N, W, E> {
+    pub node: N,
+    pub weight: W,
+    pub edge: E,
+}
+
+impl<N: Eq, W, E: Eq> PartialEq for IncNeighbor<N, W, E> {
+    fn eq(&self, other: &Self) -> bool {
+        self.node == other.node && self.edge == other.edge
+    }
+}
+
+impl<N: Eq, W, E: Eq> Eq for IncNeighbor<N, W, E> {}
+
+impl<N: Ord, W, E: Ord> PartialOrd for IncNeighbor<N, W, E> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.node.cmp(&other.node).then(self.edge.cmp(&other.edge)))
+    }
+}
+
+impl<N: Ord, W, E: Ord> Ord for IncNeighbor<N, W, E> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}
+
+// ── Ref types for inc containers ──────────────────
+
+pub struct IncNeighborRef<'a, N, W, E> {
+    pub node: &'a N,
+    pub weight: &'a W,
+    pub edge: &'a E,
+}
+
+pub struct IncNeighborRefMut<'a, N, W, E> {
+    pub node: &'a N,
+    pub weight: &'a mut W,
+    pub edge: &'a E,
+}
+
+impl<'a, N, W, E> Clone for IncNeighborRef<'a, N, W, E> {
+    fn clone(&self) -> Self {
+        Self {
+            node: self.node,
+            weight: self.weight,
+            edge: self.edge,
+        }
+    }
+}
+
+impl<'a, N, W, E> Copy for IncNeighborRef<'a, N, W, E> {}
+
+// ── IncNeighborContainer (with edge IDs) ──────────
+
+pub trait IncNeighborContainer {
+    type WeightType;
+    type NodeType: crate::types::NodeId;
+    type EdgeType: crate::types::EdgeId;
+
+    const SUPPORTS_MULTIEDGES: bool;
+
+    fn empty() -> Self;
+    fn len(&self) -> usize;
+
+    fn insert_inc(
+        &mut self,
+        node: Self::NodeType,
+        weight: Self::WeightType,
+        edge: Self::EdgeType,
+    ) -> bool;
+
+    fn iter_neighbors_inc(
+        &self,
+    ) -> impl Iterator<Item = IncNeighborRef<'_, Self::NodeType, Self::WeightType, Self::EdgeType>>;
+
+    fn iter_neighbors_inc_mut(
+        &mut self,
+    ) -> impl Iterator<Item = IncNeighborRefMut<'_, Self::NodeType, Self::WeightType, Self::EdgeType>>;
+
+    fn into_iter_neighbors_inc(
+        self,
+    ) -> impl Iterator<Item = IncNeighbor<Self::NodeType, Self::WeightType, Self::EdgeType>>;
+
+    fn retain_inc<F>(&mut self, f: F)
+    where
+        F: FnMut(IncNeighborRef<Self::NodeType, Self::WeightType, Self::EdgeType>) -> bool;
 }
