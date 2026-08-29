@@ -74,8 +74,20 @@ mod __ {
 
         /// Map a 1-hot u8 node-set to an edge ID.
         const fn edge_id_from_bitset(bitset: BinStore<u8, 1>) -> usize {
-            let idx = bitset.get_bit(0) as usize;
-            if idx < M { Self::EDGE_MAP[idx] } else { M - 1 }
+            let mut idx = 0;
+            let mut i = 0;
+            while i < 8 {
+                if bitset.get_bit(i) {
+                    idx |= 1 << i;
+                }
+                i += 1;
+            }
+            let limit = 1 << N;
+            if idx < limit {
+                Self::EDGE_MAP[idx]
+            } else {
+                M - 1
+            }
         }
 
         /// `ADJ[node]` = bitmask of edges incident to `node`.
@@ -105,8 +117,8 @@ mod __ {
         };
 
         /// `EDGE_MAP[node_bitset]` = edge ID (inverse of `NODE_MAP`).
-        pub(crate) const EDGE_MAP: [usize; M] = const {
-            let mut rv = [0; M];
+        pub(crate) const EDGE_MAP: [usize; 256] = const {
+            let mut rv = [0; 256];
             iter_hyperedges!(N, 1..=N, |edge, edge_size, edge_idx| {
                 let mut i = 0;
                 let mut bitset = 0;

@@ -1,6 +1,7 @@
 use crate::graph::{
-    AdjList, AdjSet, Directed, EdgeIdGraph, EdgeIteration, GraphBase, IncList, IncSet, InsertEdge,
-    InsertEdgeWithId, MultiedgeOps, NeighborRetrieval, RemoveEdge, Undirected,
+    AdjList, AdjSet, Directed, EdgeIdGraph, EdgeIteration, GraphBase, IncList, IncSet,
+    IndexedNeighborEntry, IndexedNeighbors, IndexedNeighborsMut, InsertEdge, InsertEdgeWithId,
+    MultiedgeOps, NeighborRetrieval, RemoveEdge, Undirected,
 };
 use crate::types::NodeId;
 
@@ -194,4 +195,61 @@ fn generic_over_representations() {
     assert_eq!(count_edges(&i), 3);
     assert_eq!(total_degree(&a), 6);
     assert_eq!(total_degree(&i), 6);
+}
+
+#[test]
+fn indexed_neighbors() {
+    let mut g: AdjList<u32, u32, Undirected> = AdjList::with_nodes(3);
+    g.insert_edge(0, 1, 10);
+    g.insert_edge(0, 2, 20);
+
+    assert_eq!(IndexedNeighbors::neighbor_node(&g, 0, 0), 1);
+    assert_eq!(IndexedNeighbors::neighbor_node(&g, 0, 1), 2);
+    assert_eq!(*IndexedNeighbors::neighbor_weight(&g, 0, 1), 20);
+    let nodes: Vec<u32> = g.neighbors(0).iter().map(|n| n.node()).collect();
+    assert_eq!(nodes, vec![1, 2]);
+
+    let mut i: IncList<u32, u32, Undirected, u32> = IncList::with_nodes(3);
+    i.insert_edge(0, 1, 10);
+    i.insert_edge(0, 2, 20);
+
+    assert_eq!(IndexedNeighbors::neighbor_node(&i, 0, 0), 1);
+    assert_eq!(*IndexedNeighbors::neighbor_weight(&i, 0, 1), 20);
+    assert_eq!(i.neighbors(0).len(), 2);
+}
+
+#[test]
+fn sort_neighbors_by_key() {
+    let mut g: AdjList<u32, u32, Undirected> = AdjList::with_nodes(3);
+    g.insert_edge(0, 2, 20);
+    g.insert_edge(0, 1, 30);
+    g.insert_edge(0, 1, 10);
+
+    g.sort_neighbors_by_key(0, |_, w| *w);
+    let ws: Vec<u32> = g.neighbors(0).iter().map(|n| *n.weight()).collect();
+    assert_eq!(ws, vec![10, 20, 30]);
+
+    g.sort_neighbors_by_key(0, |node, _| *node);
+    let ns: Vec<u32> = g.neighbors(0).iter().map(|n| n.node()).collect();
+    assert_eq!(ns, vec![1, 1, 2]);
+}
+
+fn neighbor_id_sum<G: IndexedNeighbors>(g: &G, node: G::NodeIdType) -> usize {
+    (0..g.degree(node))
+        .map(|idx| g.neighbor_node(node, idx).as_usize())
+        .sum()
+}
+
+#[test]
+fn indexed_neighbors_generic() {
+    let mut a: AdjList<u32, u32, Undirected> = AdjList::with_nodes(3);
+    a.insert_edge(0, 1, 5);
+    a.insert_edge(0, 2, 7);
+
+    let mut i: IncList<u32, u32, Undirected, u32> = IncList::with_nodes(3);
+    i.insert_edge(0, 1, 5);
+    i.insert_edge(0, 2, 7);
+
+    assert_eq!(neighbor_id_sum(&a, 0), 1 + 2);
+    assert_eq!(neighbor_id_sum(&i, 0), 1 + 2);
 }

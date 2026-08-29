@@ -12,6 +12,7 @@ rhyperx-core = { workspace = true }
 duplicate = { workspace = true }
 foldhash = { workspace = true }
 hashbrown = { workspace = true }
+num-traits = { workspace = true }
 paste = { workspace = true }
 thiserror = { workspace = true }
 rkyv = { workspace = true }

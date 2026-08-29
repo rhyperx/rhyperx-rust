@@ -1,5 +1,7 @@
-use super::adjacency::{AdjBase, AdjConfig, NeighborContainer, NeighborRef};
-use super::incidence::{IncBase, IncConfig, IncNeighborContainer, IncNeighborRef};
+use super::adjacency::{AdjBase, AdjConfig, AdjList, Neighbor, NeighborContainer, NeighborRef};
+use super::incidence::{
+    IncBase, IncConfig, IncList, IncNeighbor, IncNeighborContainer, IncNeighborRef,
+};
 use crate::types::{EdgeId, NodeId};
 
 pub trait Direction {
@@ -20,6 +22,8 @@ pub trait GraphBase {
     fn m(&self) -> usize;
 }
 
+// TODO: add so that it supports index operation []. Adj[i] should return the container with
+// neighbors of node i; indexable by usize. I guess the container type should become part of the trait
 /// Per-node neighbor retrieval.
 pub trait NeighborRetrieval: GraphBase {
     fn degree(&self, node: Self::NodeIdType) -> usize;
@@ -31,6 +35,82 @@ pub trait NeighborRetrieval: GraphBase {
         &self,
         node: Self::NodeIdType,
     ) -> impl Iterator<Item = NeighborRef<'_, Self::NodeIdType, Self::WeightType>> + '_;
+}
+
+/// A single neighbor entry readable through [`IndexedNeighbors`].
+pub trait IndexedNeighborEntry {
+    type NodeIdType: NodeId;
+    type WeightType;
+
+    fn node(&self) -> Self::NodeIdType;
+    fn weight(&self) -> &Self::WeightType;
+}
+
+impl<N: NodeId, W> IndexedNeighborEntry for Neighbor<N, W> {
+    type NodeIdType = N;
+    type WeightType = W;
+
+    fn node(&self) -> N {
+        self.node
+    }
+
+    fn weight(&self) -> &W {
+        &self.weight
+    }
+}
+
+impl<N: NodeId, W, E> IndexedNeighborEntry for IncNeighbor<N, W, E> {
+    type NodeIdType = N;
+    type WeightType = W;
+
+    fn node(&self) -> N {
+        self.node
+    }
+
+    fn weight(&self) -> &W {
+        &self.weight
+    }
+}
+
+/// Per-node neighbor retrieval on index based. Basically Adj/Inc list with vec container
+pub trait IndexedNeighbors: NeighborRetrieval {
+    /// The type of a single neighbor entry in the container.
+    type Neighbor: IndexedNeighborEntry<NodeIdType = Self::NodeIdType, WeightType = Self::WeightType>;
+
+    /// Returns the neighbor container of `node` as a slice.
+    fn neighbors(&self, node: Self::NodeIdType) -> &[Self::Neighbor];
+
+    /// Returns the `idx`-th neighbor of `node`.
+    fn neighbor_node(&self, node: Self::NodeIdType, idx: usize) -> Self::NodeIdType {
+        self.neighbors(node)[idx].node()
+    }
+
+    /// Returns a reference to the weight of the `idx`-th neighbor of `node`.
+    fn neighbor_weight(&self, node: Self::NodeIdType, idx: usize) -> &Self::WeightType {
+        self.neighbors(node)[idx].weight()
+    }
+}
+
+/// [`IndexedNeighbors`] whose neighbor containers can be mutated in place.
+///
+/// No sorting-order guarantee is provided: the ordering of a slice is unspecified unless the
+/// algorithm itself sorts it (e.g. through [`IndexedNeighborsMut::sort_neighbors_by_key`]).
+pub trait IndexedNeighborsMut: IndexedNeighbors {
+    /// Returns the neighbor container of `node` as a mutable slice.
+    fn neighbors_mut(&mut self, node: Self::NodeIdType) -> &mut [Self::Neighbor];
+
+    /// Sorts the neighbors of `node` by the key extracted from each entry.
+    fn sort_neighbors_by_key<K>(
+        &mut self,
+        node: Self::NodeIdType,
+        key: impl FnMut(&Self::NodeIdType, &Self::WeightType) -> K,
+    ) where
+        K: Ord,
+    {
+        let mut key = key;
+        self.neighbors_mut(node)
+            .sort_by_key(|n| key(&n.node(), n.weight()));
+    }
 }
 
 /// An edge with both endpoints and a reference to its weight.
@@ -321,5 +401,35 @@ impl<C: IncConfig> MultiedgeOps for IncBase<C> {
 
     fn remove_multiedges(&mut self) -> usize {
         IncBase::remove_multiedges(self)
+    }
+}
+
+// ── Vec-backed indexable impls ─────────────────────
+
+impl<N: NodeId, W, D: Direction> IndexedNeighbors for AdjList<N, W, D> {
+    type Neighbor = Neighbor<N, W>;
+
+    fn neighbors(&self, node: N) -> &[Neighbor<N, W>] {
+        &self[node]
+    }
+}
+
+impl<N: NodeId, W, D: Direction> IndexedNeighborsMut for AdjList<N, W, D> {
+    fn neighbors_mut(&mut self, node: N) -> &mut [Neighbor<N, W>] {
+        &mut self[node]
+    }
+}
+
+impl<N: NodeId, W, D: Direction, E: EdgeId> IndexedNeighbors for IncList<N, W, D, E> {
+    type Neighbor = IncNeighbor<N, W, E>;
+
+    fn neighbors(&self, node: N) -> &[IncNeighbor<N, W, E>] {
+        &self[node]
+    }
+}
+
+impl<N: NodeId, W, D: Direction, E: EdgeId> IndexedNeighborsMut for IncList<N, W, D, E> {
+    fn neighbors_mut(&mut self, node: N) -> &mut [IncNeighbor<N, W, E>] {
+        &mut self[node]
     }
 }

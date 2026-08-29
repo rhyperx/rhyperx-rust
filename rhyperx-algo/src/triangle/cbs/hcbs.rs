@@ -9,8 +9,6 @@ use std::{
 
 use num_traits::PrimInt;
 
-use crate::types::NodeId;
-
 #[derive(Clone)]
 pub struct HCBS<T> {
     pub bits: Vec<T>,
@@ -73,15 +71,15 @@ where
     /// Optimization: assume that the last element is always the largest, so we can append it
     /// without checks for reallocation
     #[inline(always)]
-    pub fn append(&mut self, element: NodeId) {
-        let bit_size = (size_of::<T>() * 8) as u32;
+    pub fn append(&mut self, element: usize) {
+        let bit_size = size_of::<T>() * 8;
         let block_offset = element / bit_size;
         let bit_offset = element % bit_size;
         let new_block = T::one() << bit_offset as usize;
 
-        if self.offsets.is_empty() || *self.offsets.last().unwrap() != block_offset as usize {
+        if self.offsets.is_empty() || *self.offsets.last().unwrap() != block_offset {
             self.bits.push(new_block);
-            self.offsets.push(block_offset as usize);
+            self.offsets.push(block_offset);
         } else {
             *self.bits.last_mut().unwrap() |= new_block;
         }
@@ -123,8 +121,8 @@ where
     #[inline(always)]
     /// Optimization: assume that node v is biggest neighbor of u, so we can append it directly
     /// without checking for reallocation in the underlying HCBS structure.
-    pub fn append_neighbor(&mut self, u: NodeId, v: NodeId) {
-        self.nodes[u as usize].append(v);
+    pub fn append_neighbor(&mut self, u: usize, v: usize) {
+        self.nodes[u].append(v);
     }
 
     pub fn count_common_neighbors(&self, u: usize, v: usize) -> usize {

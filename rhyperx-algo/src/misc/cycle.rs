@@ -1,18 +1,14 @@
-use std::ops::AddAssign;
-
 use num_traits::{AsPrimitive, Float};
 
-use crate::{
-    misc::{Order, degree_ordering, sort_by_degree},
-    types::{
-        NodeId,
-        adj_list::{AdjList, common::Undirected, traits::Incidence},
-    },
-};
+use rhyperx_core::graph::{IndexedNeighbors, IndexedNeighborsMut, Undirected};
+use rhyperx_core::misc::order::Order;
+use rhyperx_core::types::{EdgeId, NodeId};
 
-pub struct Cycle4<'a, W, I: Incidence> {
-    pub nodes: [NodeId; 4],
-    pub edges: [I::EdgeType; 4],
+use crate::misc::sorting::sort_by_degree;
+
+pub struct Cycle4<'a, N: NodeId, W, E: EdgeId> {
+    pub nodes: [N; 4],
+    pub edges: [E; 4],
     pub weights: [&'a W; 4],
 }
 
@@ -20,20 +16,19 @@ pub struct Cycle4<'a, W, I: Incidence> {
 //
 // Sort the adjacency list N +(v) of each vertex v, such that the neighborhood
 // begins with N −(v) (in arbitrary order), and then is followed by N +(v) (sorted in order of ≺).
-fn count_c4_base<W, I: Incidence>(adj: &AdjList<W, Undirected, I>, order: &Order) -> usize {
-    let mut n_less_count = vec![0; adj.n()];
-
-    let n_less_count = adj
-        .iter_neighbors()
-        .enumerate()
-        .map(|(v, neighbors)| {
-            neighbors
-                .iter()
-                .filter(|neighbor| {
-                    // (neighbor, ref weight)
-                    let neighbor = neighbor.node;
-                    adj[neighbor].len() < neighbors.len()
-                        || (adj[neighbor].len() == neighbors.len() && neighbor < v as NodeId)
+fn count_c4_base<G>(adj: &G, order: &Order<G::NodeIdType>) -> usize
+where
+    G: IndexedNeighbors<Dir = Undirected>,
+{
+    let n_less_count = (0..adj.n())
+        .map(|v| {
+            let v_id = G::NodeIdType::from_usize(v);
+            let v_deg = adj.degree(v_id);
+            (0..v_deg)
+                .filter(|&idx| {
+                    let neighbor = adj.neighbor_node(v_id, idx);
+                    let neighbor_deg = adj.degree(neighbor);
+                    neighbor_deg < v_deg || (neighbor_deg == v_deg && neighbor < v_id)
                 })
                 .count()
         })
@@ -43,12 +38,13 @@ fn count_c4_base<W, I: Incidence>(adj: &AdjList<W, Undirected, I>, order: &Order
     let mut l = vec![0; adj.n()];
 
     for i in 0..adj.n() {
-        let x = order[i] as usize;
+        let x_id = order[i];
+        let x = x_id.as_usize();
         for j in 0..n_less_count[x] {
-            let y = adj[x][j].node as usize;
+            let y = adj.neighbor_node(x_id, j);
             let mut k = 0;
             loop {
-                let z = adj[y][k].node as usize;
+                let z = adj.neighbor_node(y, k).as_usize();
                 if z == x {
                     break;
                 }
@@ -60,10 +56,10 @@ fn count_c4_base<W, I: Incidence>(adj: &AdjList<W, Undirected, I>, order: &Order
         }
 
         for j in 0..n_less_count[x] {
-            let y = adj[x][j].node as usize;
+            let y = adj.neighbor_node(x_id, j);
             let mut k = 0;
             loop {
-                let z = adj[y][k].node as usize;
+                let z = adj.neighbor_node(y, k).as_usize();
                 if z == x {
                     break;
                 }
@@ -78,8 +74,11 @@ fn count_c4_base<W, I: Incidence>(adj: &AdjList<W, Undirected, I>, order: &Order
 /// Paul Burkhardt and David G. Harris 4-cycle heuristic
 ///
 /// A mut ref is required for adj list neighbors sorting
-pub fn count_c4<W, I: Incidence>(adj: &mut AdjList<W, Undirected, I>) -> usize {
-    let (mut order_pos, degeneracy) = sort_by_degree(adj, false);
+pub fn count_c4<G>(adj: &mut G) -> usize
+where
+    G: IndexedNeighborsMut<Dir = Undirected>,
+{
+    let (order_pos, _degeneracy) = sort_by_degree(adj, false);
     count_c4_base(adj, &order_pos.order)
 }
 
@@ -88,7 +87,10 @@ pub fn count_c4<W, I: Incidence>(adj: &mut AdjList<W, Undirected, I>) -> usize {
 /// The implementation assumes that the adjacency list is already sorted by degree, so no
 /// preprocessing is required. If the adjacency list is not sorted, use `count_c_4()` instead,
 /// otherwise the result will be incorrect.
-pub fn count_c4_no_sort<W, I: Incidence>(adj: &AdjList<W, Undirected, I>, order: &Order) -> usize {
+pub fn count_c4_no_sort<G>(adj: &G, order: &Order<G::NodeIdType>) -> usize
+where
+    G: IndexedNeighbors<Dir = Undirected>,
+{
     count_c4_base(adj, order)
 }
 
@@ -97,26 +99,20 @@ pub fn count_c4_no_sort<W, I: Incidence>(adj: &AdjList<W, Undirected, I>, order:
 /// The implementation assumes that the adjacency list is already sorted by degree, so no
 /// preprocessing is required. If the adjacency list is not sorted, use `count_c_4()` instead,
 /// otherwise the result will be incorrect.
-fn intensity_c4_base<W, I: Incidence>(
-    adj: &AdjList<W, Undirected, I>,
-    order: &Order,
-) -> (usize, f64)
+fn intensity_c4_base<G>(adj: &G, order: &Order<G::NodeIdType>) -> (usize, f64)
 where
-    W: Float + AsPrimitive<f64>,
+    G: IndexedNeighbors<Dir = Undirected>,
+    G::WeightType: Float + AsPrimitive<f64>,
 {
-    let mut n_less_count = vec![0; adj.n()];
-
-    let n_less_count = adj
-        .iter_neighbors()
-        .enumerate()
-        .map(|(v, neighbors)| {
-            neighbors
-                .iter()
-                .filter(|neighbor| {
-                    // (neighbor, ref weight)
-                    let neighbor = neighbor.node;
-                    adj[neighbor].len() < neighbors.len()
-                        || (adj[neighbor].len() == neighbors.len() && neighbor < v as NodeId)
+    let n_less_count = (0..adj.n())
+        .map(|v| {
+            let v_id = G::NodeIdType::from_usize(v);
+            let v_deg = adj.degree(v_id);
+            (0..v_deg)
+                .filter(|&idx| {
+                    let neighbor = adj.neighbor_node(v_id, idx);
+                    let neighbor_deg = adj.degree(neighbor);
+                    neighbor_deg < v_deg || (neighbor_deg == v_deg && neighbor < v_id)
                 })
                 .count()
         })
@@ -129,15 +125,16 @@ where
     let mut l_intensity = vec![0.0; adj.n()];
 
     for i in 0..adj.n() {
-        let x = order[i] as usize;
+        let x_id = order[i];
+        let x = x_id.as_usize();
         for j in 0..n_less_count[x] {
-            let y = adj[x][j].node as usize;
-            let w_xy = adj[x][j].weight;
+            let y = adj.neighbor_node(x_id, j);
+            let w_xy = *adj.neighbor_weight(x_id, j);
 
             let mut k = 0;
             loop {
-                let z = adj[y][k].node as usize;
-                let w_yz = adj[y][k].weight;
+                let z = adj.neighbor_node(y, k).as_usize();
+                let w_yz = *adj.neighbor_weight(y, k);
                 if z == x {
                     break;
                 }
@@ -153,10 +150,10 @@ where
         }
 
         for j in 0..n_less_count[x] {
-            let y = adj[x][j].node as usize;
+            let y = adj.neighbor_node(x_id, j);
             let mut k = 0;
             loop {
-                let z = adj[y][k].node as usize;
+                let z = adj.neighbor_node(y, k).as_usize();
                 if z == x {
                     break;
                 }
@@ -174,11 +171,12 @@ where
 ///
 /// The implementation assumes that the adjacency list is already sorted by degree, so no
 /// preprocessing is required.
-pub fn intensity_c4<W, I: Incidence>(adj: &mut AdjList<W, Undirected, I>) -> (usize, f64)
+pub fn intensity_c4<G>(adj: &mut G) -> (usize, f64)
 where
-    W: Float + AsPrimitive<f64>,
+    G: IndexedNeighborsMut<Dir = Undirected>,
+    G::WeightType: Float + AsPrimitive<f64>,
 {
-    let (mut order_pos, degeneracy) = sort_by_degree(adj, false);
+    let (order_pos, _degeneracy) = sort_by_degree(adj, false);
     intensity_c4_base(adj, &order_pos.order)
 }
 
@@ -186,12 +184,10 @@ where
 ///
 /// The implementation assumes that the adjacency list is already sorted by degree, so no
 /// preprocessing is required.
-pub fn intensity_c4_no_sort<W, I: Incidence>(
-    adj: &AdjList<W, Undirected, I>,
-    order: &Order,
-) -> (usize, f64)
+pub fn intensity_c4_no_sort<G>(adj: &G, order: &Order<G::NodeIdType>) -> (usize, f64)
 where
-    W: Float + AsPrimitive<f64>,
+    G: IndexedNeighbors<Dir = Undirected>,
+    G::WeightType: Float + AsPrimitive<f64>,
 {
     intensity_c4_base(adj, order)
 }
@@ -204,26 +200,20 @@ where
 /// The implementation assumes that the adjacency list is already sorted by degree, so no
 /// preprocessing is required. If the adjacency list is not sorted, use `count_c_4()` instead,
 /// otherwise the result will be incorrect.
-fn intensity_c4_subinc_base<W, I: Incidence>(
-    adj: &AdjList<W, Undirected, I>,
-    order: &Order,
-) -> (usize, f64, f64)
+fn intensity_c4_subinc_base<G>(adj: &G, order: &Order<G::NodeIdType>) -> (usize, f64, f64)
 where
-    W: Float + AsPrimitive<f64>,
+    G: IndexedNeighbors<Dir = Undirected>,
+    G::WeightType: Float + AsPrimitive<f64>,
 {
-    let mut n_less_count = vec![0; adj.n()];
-
-    let n_less_count = adj
-        .iter_neighbors()
-        .enumerate()
-        .map(|(v, neighbors)| {
-            neighbors
-                .iter()
-                .filter(|neighbor| {
-                    // (neighbor, ref weight)
-                    let neighbor = neighbor.node;
-                    adj[neighbor].len() < neighbors.len()
-                        || (adj[neighbor].len() == neighbors.len() && neighbor < v as NodeId)
+    let n_less_count = (0..adj.n())
+        .map(|v| {
+            let v_id = G::NodeIdType::from_usize(v);
+            let v_deg = adj.degree(v_id);
+            (0..v_deg)
+                .filter(|&idx| {
+                    let neighbor = adj.neighbor_node(v_id, idx);
+                    let neighbor_deg = adj.degree(neighbor);
+                    neighbor_deg < v_deg || (neighbor_deg == v_deg && neighbor < v_id)
                 })
                 .count()
         })
@@ -240,15 +230,16 @@ where
     let mut l_high_int = vec![0.0; adj.n()];
 
     for i in 0..adj.n() {
-        let x = order[i] as usize;
+        let x_id = order[i];
+        let x = x_id.as_usize();
         for j in 0..n_less_count[x] {
-            let y = adj[x][j].node as usize;
-            let w_xy = adj[x][j].weight;
+            let y = adj.neighbor_node(x_id, j);
+            let w_xy = *adj.neighbor_weight(x_id, j);
 
             let mut k = 0;
             loop {
-                let z = adj[y][k].node as usize;
-                let w_yz = adj[y][k].weight;
+                let z = adj.neighbor_node(y, k).as_usize();
+                let w_yz = *adj.neighbor_weight(y, k);
                 if z == x {
                     break;
                 }
@@ -274,10 +265,10 @@ where
         }
 
         for j in 0..n_less_count[x] {
-            let y = adj[x][j].node as usize;
+            let y = adj.neighbor_node(x_id, j);
             let mut k = 0;
             loop {
-                let z = adj[y][k].node as usize;
+                let z = adj.neighbor_node(y, k).as_usize();
                 if z == x {
                     break;
                 }
@@ -303,13 +294,12 @@ where
 ///
 /// The implementation assumes that the adjacency list is already sorted by degree, so no
 /// preprocessing is required.
-pub fn intensity_c4_subinc<W, I: Incidence>(
-    adj: &mut AdjList<W, Undirected, I>,
-) -> (usize, f64, f64)
+pub fn intensity_c4_subinc<G>(adj: &mut G) -> (usize, f64, f64)
 where
-    W: Float + AsPrimitive<f64>,
+    G: IndexedNeighborsMut<Dir = Undirected>,
+    G::WeightType: Float + AsPrimitive<f64>,
 {
-    let (mut order_pos, degeneracy) = sort_by_degree(adj, false);
+    let (order_pos, _degeneracy) = sort_by_degree(adj, false);
     intensity_c4_subinc_base(adj, &order_pos.order)
 }
 
@@ -317,12 +307,10 @@ where
 ///
 /// The implementation assumes that the adjacency list is already sorted by degree, so no
 /// preprocessing is required.
-pub fn intensity_c4_subinc_no_sort<W, I: Incidence>(
-    adj: &AdjList<W, Undirected, I>,
-    order: &Order,
-) -> (usize, f64, f64)
+pub fn intensity_c4_subinc_no_sort<G>(adj: &G, order: &Order<G::NodeIdType>) -> (usize, f64, f64)
 where
-    W: Float + AsPrimitive<f64>,
+    G: IndexedNeighbors<Dir = Undirected>,
+    G::WeightType: Float + AsPrimitive<f64>,
 {
     intensity_c4_subinc_base(adj, order)
 }

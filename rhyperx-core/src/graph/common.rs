@@ -1,3 +1,5 @@
+use std::hash::Hash;
+
 use foldhash::fast::FixedState;
 use hashbrown::HashMap;
 
@@ -92,7 +94,7 @@ impl<N: NodeId, W> NeighborContainer for Vec<Neighbor<N, W>> {
 
 // ── HashMap<N, W> container ───────────────────────
 
-impl<N: NodeId + Eq + std::hash::Hash, W> NeighborContainer for HashMap<N, W, FixedState> {
+impl<N: NodeId + Eq + Hash, W> NeighborContainer for HashMap<N, W, FixedState> {
     type NodeType = N;
     type WeightType = W;
 
@@ -201,9 +203,7 @@ impl<N: NodeId, W, E: EdgeId> IncNeighborContainer for Vec<IncNeighbor<N, W, E>>
 
 // ── HashMap<N, (W, E)> container ──────────────────
 
-impl<N: NodeId + Eq + std::hash::Hash, W, E: EdgeId> IncNeighborContainer
-    for HashMap<N, (W, E), FixedState>
-{
+impl<N: NodeId + Eq + Hash, W, E: EdgeId> IncNeighborContainer for HashMap<N, (W, E), FixedState> {
     type NodeType = N;
     type WeightType = W;
     type EdgeType = E;

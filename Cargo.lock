@@ -905,6 +905,7 @@ dependencies = [
  "duplicate",
  "foldhash",
  "hashbrown",
+ "num-traits",
  "paste",
  "rhyperx-core",
  "rhyperx-macros",
