@@ -1,27 +1,29 @@
-use hashbrown::{HashMap, HashSet};
-use rhyperx_core::graph::adj_list::{AdjList, Undirected, traits::Incidence};
+use hashbrown::HashSet;
+use rhyperx_core::graph::{AdjList, Undirected};
+use rhyperx_core::types::NodeId;
 use std::hash::Hash;
-
-use crate::misc::neighbors_sorted_list_cloj;
 
 /// Returns all maximal cliques in the undirected graph.
 ///
 /// This is an iterative implementation of the Bron-Kerbosch algorithm with pivoting,
 /// translating the provided Python implementation to avoid recursion depth limits.
-pub fn find_cliques<W, I: Incidence>(adj: &AdjList<W, Undirected, I>) -> Vec<Vec<NodeId>> {
+pub fn find_cliques<N, W>(adj: &AdjList<N, W, Undirected>) -> Vec<Vec<N>>
+where
+    N: NodeId + Hash + Eq,
+{
     let mut cliques = Vec::new();
 
     if adj.n() == 0 {
         return cliques;
     }
 
-    // Convert adjacency list to HashSets for O(1) lookups and set operations (ignores adj-loops)
-    let mut adj_sets: Vec<HashSet<NodeId>> = Vec::with_capacity(adj.n());
+    // Convert adjacency list to HashSets for O(1) lookups and set operations (ignores self-loops)
+    let mut adj_sets: Vec<HashSet<N>> = Vec::with_capacity(adj.n());
     for u in 0..adj.n() {
         let mut set = HashSet::new();
-        for n in &adj[u] {
+        for n in &adj[N::from_usize(u)] {
             let v = n.node;
-            if v as usize != u {
+            if v.as_usize() != u {
                 set.insert(v);
             }
         }
@@ -29,27 +31,27 @@ pub fn find_cliques<W, I: Incidence>(adj: &AdjList<W, Undirected, I>) -> Vec<Vec
     }
 
     // Initialize candidate sets
-    let mut cand: HashSet<NodeId> = (0..adj.n() as NodeId).collect();
-    let mut subg: HashSet<NodeId> = cand.clone();
+    let mut cand: HashSet<N> = (0..adj.n()).map(N::from_usize).collect();
+    let mut subg: HashSet<N> = cand.clone();
 
     if cand.is_empty() {
         return cliques;
     }
 
     let mut stack = Vec::new();
-    let mut q: Vec<NodeId> = Vec::new();
+    let mut q: Vec<N> = Vec::new();
 
     // Placeholder for Q[-1] logic in Python
-    q.push(0);
+    q.push(N::from_usize(0));
 
     // Find initial pivot
     let u_pivot = *subg
         .iter()
-        .max_by_key(|&&u| cand.intersection(&adj_sets[u as usize]).count())
+        .max_by_key(|&&u| cand.intersection(&adj_sets[u.as_usize()]).count())
         .unwrap();
 
-    let mut ext_u: Vec<NodeId> = cand
-        .difference(&adj_sets[u_pivot as usize])
+    let mut ext_u: Vec<N> = cand
+        .difference(&adj_sets[u_pivot.as_usize()])
         .cloned()
         .collect();
 
@@ -62,18 +64,18 @@ pub fn find_cliques<W, I: Incidence>(adj: &AdjList<W, Undirected, I>) -> Vec<Vec
                 *last = q_node;
             }
 
-            let adj_q = &adj_sets[q_node as usize];
-            let subg_q: HashSet<NodeId> = subg.intersection(adj_q).cloned().collect();
+            let adj_q = &adj_sets[q_node.as_usize()];
+            let subg_q: HashSet<N> = subg.intersection(adj_q).cloned().collect();
 
             if subg_q.is_empty() {
                 // Yield Q[:]
                 cliques.push(q.clone());
             } else {
-                let cand_q: HashSet<NodeId> = cand.intersection(adj_q).cloned().collect();
+                let cand_q: HashSet<N> = cand.intersection(adj_q).cloned().collect();
                 if !cand_q.is_empty() {
                     // Push state to stack
                     stack.push((subg, cand, ext_u));
-                    q.push(0); // Q.append(None)
+                    q.push(N::from_usize(0)); // Q.append(None)
 
                     subg = subg_q;
                     cand = cand_q;
@@ -81,11 +83,11 @@ pub fn find_cliques<W, I: Incidence>(adj: &AdjList<W, Undirected, I>) -> Vec<Vec
                     // Find new pivot
                     let u_pivot = *subg
                         .iter()
-                        .max_by_key(|&&u| cand.intersection(&adj_sets[u as usize]).count())
+                        .max_by_key(|&&u| cand.intersection(&adj_sets[u.as_usize()]).count())
                         .unwrap();
 
                     ext_u = cand
-                        .difference(&adj_sets[u_pivot as usize])
+                        .difference(&adj_sets[u_pivot.as_usize()])
                         .cloned()
                         .collect();
                 }

@@ -1,12 +1,15 @@
 #[cfg(test)]
 pub mod tests;
 
+pub mod collections;
 pub mod error;
 pub mod misc;
 
 pub mod graph;
 pub mod hypergraph;
+pub mod motif;
 pub mod types;
+pub mod util;
 
 // pub use graph::*;
 // pub use hypergraph::*;

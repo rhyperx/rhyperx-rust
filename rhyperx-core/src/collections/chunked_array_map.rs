@@ -23,7 +23,7 @@ pub mod typed {
     ///
     /// # Example
     /// ```
-    /// use flat_fixed_array_set::array_map::typed::ChunkedArrayMap;
+    /// use rhyperx_core::misc::chunked_array_map::typed::ChunkedArrayMap;
     ///
     /// let mut map: ChunkedArrayMap<3, i32, &str> = ChunkedArrayMap::new();
     /// map.insert(&[0, 1, 2], "first");
@@ -329,13 +329,17 @@ pub mod non_typed {
     ///
     /// # Example
     /// ```
-    /// use flat_fixed_array_set::array_map::non_typed::ChunkedArrayMap;
+    /// use rhyperx_core::misc::chunked_array_map::non_typed::ChunkedArrayMap;
     ///
     /// let mut map = ChunkedArrayMap::new(3);
     /// map.insert(&[0, 1, 2], "first");
     /// assert_eq!(map.get(&[0, 1, 2]), Some(&"first"));
     /// ```
     #[derive(Clone)]
+    #[cfg_attr(
+        feature = "serialize",
+        derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)
+    )]
     pub struct ChunkedArrayMap<K, V> {
         chunk_size: usize,
         pub(crate) keys: Vec<K>,

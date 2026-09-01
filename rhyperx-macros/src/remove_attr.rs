@@ -213,6 +213,7 @@ fn strip_trait_item(item: &mut syn::TraitItem, regexes: &[Regex]) {
 ///
 /// # Example
 /// ```rust
+/// use rhyperx_macros::remove_attr;
 /// #[remove_attr("serde.*", "some_other_attr")]
 /// #[derive(Debug)]
 /// struct Foo {
@@ -222,7 +223,7 @@ fn strip_trait_item(item: &mut syn::TraitItem, regexes: &[Regex]) {
 /// }
 /// // expands to:
 /// #[derive(Debug)]
-/// struct Foo {
+/// struct Bar {
 ///     #[doc = "kept"]
 ///     field: u32,
 /// }

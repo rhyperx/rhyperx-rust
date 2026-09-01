@@ -213,7 +213,7 @@ impl<'a, T, W> HxUnsizedRefMut<'a, T, W> {
 
 // ToOwned
 impl<const N: usize, T: NodeId, W: Clone> HxSizedRef<'_, N, T, W> {
-    fn to_owned(&self) -> SizedHx<N, T, W> {
+    pub fn to_owned(&self) -> SizedHx<N, T, W> {
         SizedHx {
             nodes: self.nodes.clone(),
             weight: self.weight.clone(),
@@ -222,7 +222,7 @@ impl<const N: usize, T: NodeId, W: Clone> HxSizedRef<'_, N, T, W> {
 }
 
 impl<const N: usize, T: NodeId, W: Clone> HxSizedRefMut<'_, N, T, W> {
-    fn to_owned(&self) -> SizedHx<N, T, W> {
+    pub fn to_owned(&self) -> SizedHx<N, T, W> {
         SizedHx {
             nodes: self.nodes.clone(),
             weight: self.weight.clone(),

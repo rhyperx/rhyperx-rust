@@ -74,9 +74,10 @@ fn is_descendant(child: &Ident, target_root: &Ident, structs: &HashMap<Ident, St
         return true;
     }
     if let Some(info) = structs.get(child)
-        && let Some(ref parent) = info.parent {
-            return is_descendant(parent, target_root, structs);
-        }
+        && let Some(ref parent) = info.parent
+    {
+        return is_descendant(parent, target_root, structs);
+    }
     false
 }
 
@@ -282,9 +283,10 @@ pub fn loaders_suite(_attr: TokenStream, item: TokenStream) -> TokenStream {
                     if is_leaf_attr {
                         is_leaf_func = true;
                         if let syn::Meta::List(list) = &attr.meta
-                            && let Ok(ident) = syn::parse2::<Ident>(list.tokens.clone()) {
-                                target_root = Some(ident);
-                            }
+                            && let Ok(ident) = syn::parse2::<Ident>(list.tokens.clone())
+                        {
+                            target_root = Some(ident);
+                        }
                     } else {
                         retained_attrs.push(attr);
                     }
@@ -304,18 +306,18 @@ pub fn loaders_suite(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 let mut is_managed_impl = false;
                 if let syn::Type::Path(type_path) = &*imp.self_ty
                     && type_path.qself.is_none()
-                        && type_path.path.leading_colon.is_none()
-                        && type_path.path.segments.len() == 1
-                    {
-                        let struct_ident = &type_path.path.segments[0].ident;
-                        if loader_idents.contains(struct_ident) {
-                            is_managed_impl = true;
-                            explicit_impls
-                                .entry(struct_ident.clone())
-                                .or_insert_with(Vec::new)
-                                .extend(imp.items.clone());
-                        }
+                    && type_path.path.leading_colon.is_none()
+                    && type_path.path.segments.len() == 1
+                {
+                    let struct_ident = &type_path.path.segments[0].ident;
+                    if loader_idents.contains(struct_ident) {
+                        is_managed_impl = true;
+                        explicit_impls
+                            .entry(struct_ident.clone())
+                            .or_insert_with(Vec::new)
+                            .extend(imp.items.clone());
                     }
+                }
                 if !is_managed_impl {
                     other_items.push(Item::Impl(imp));
                 }
@@ -330,9 +332,10 @@ pub fn loaders_suite(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let keys: Vec<Ident> = managed_structs.keys().cloned().collect();
     for key in &keys {
         if let Some(parent_ident) = managed_structs.get(key).unwrap().parent.clone()
-            && let Some(parent_info) = managed_structs.get_mut(&parent_ident) {
-                parent_info.children.push(key.clone());
-            }
+            && let Some(parent_info) = managed_structs.get_mut(&parent_ident)
+        {
+            parent_info.children.push(key.clone());
+        }
     }
 
     // Recursive helper to resolve field inheritance across the hierarchy
@@ -349,10 +352,11 @@ pub fn loaders_suite(_attr: TokenStream, item: TokenStream) -> TokenStream {
         let mut all_fields = Vec::new();
 
         if let Some(ref parent_ident) = info.parent
-            && structs.contains_key(parent_ident) {
-                let parent_fields = resolve_all_fields(parent_ident, structs, cache);
-                all_fields.extend(parent_fields);
-            }
+            && structs.contains_key(parent_ident)
+        {
+            let parent_fields = resolve_all_fields(parent_ident, structs, cache);
+            all_fields.extend(parent_fields);
+        }
 
         for local_f in &info.local_fields {
             let local_ident = local_f.ident.as_ref();
@@ -455,14 +459,15 @@ pub fn loaders_suite(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
             if !should_skip
                 && let Some(f_id) = f_ident.clone()
-                    && !explicit_method_names.contains(&f_id) {
-                        final_methods.push(quote! {
-                            pub fn #f_id(&mut self, #f_id: #f_ty) -> Self {
-                                self.#f_id = #f_id;
-                                self.clone()
-                            }
-                        });
+                && !explicit_method_names.contains(&f_id)
+            {
+                final_methods.push(quote! {
+                    pub fn #f_id(&mut self, #f_id: #f_ty) -> Self {
+                        self.#f_id = #f_id;
+                        self.clone()
                     }
+                });
+            }
         }
 
         // 4c. Context Transitions / End Node Action generation

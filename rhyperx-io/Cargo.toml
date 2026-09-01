@@ -6,3 +6,12 @@ license = "MIT OR Apache-2.0"
 description = "I/O and serialization utilities used in the rhyperx hypergraph library."
 
 [dependencies]
+rhyperx-core = { workspace = true, features = ["serialize"] }
+rhyperx-algo = { workspace = true }
+rhyperx-macros = { workspace = true }
+
+thiserror = { workspace = true }
+hashbrown = { workspace = true }
+toml = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+log = { workspace = true }

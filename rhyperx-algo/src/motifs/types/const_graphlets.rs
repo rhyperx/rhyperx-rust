@@ -1,7 +1,7 @@
-use crate::CompactMotif;
+use rhyperx_core::motif::CompactMotif;
+
 type CompactMotif3 = CompactMotif!(3);
 type CompactMotif4 = CompactMotif!(4);
-type CompactMotif5 = CompactMotif!(5);
 
 pub const TRIANGLE: CompactMotif3 = {
     let mut rv = CompactMotif3::EMPTY;

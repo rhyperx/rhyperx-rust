@@ -4,14 +4,14 @@ Rust hypergraph library. Workspace with 6 crates, edition 2024, resolver "3".
 
 ## Workspace members
 
-| Crate | Purpose |
+| Crate | Responsibility |
 |---|---|
-| `rhyperx` | Umbrella facade crate. Currently empty (`pub fn main(){}`). |
-| `rhyperx-core` | Core data structures: `graph/`, `hypergraph/`, `types`, `error`. Entrypoint. |
-| `rhyperx-algo` | Algorithms: `bin_store/` (compact motif, bin store, node set), `util/` (const ops, permutations, sorting networks, misc). The `motifs/` module is commented out in lib.rs — do **not** add `pub mod motifs` without checking whether its code compiles (it imports `crate::motifs::` from within `motifs/` which is circular). |
-| `rhyperx-macros` | Proc-macro crate. 6 attributes: `#[repeat]`, `#[hoist_mod]`, `#[inherent]`, `#[ct_map]`, `#[ct_map_accessor]`, `#[loaders]`, `#[remove_attr]`. |
-| `rhyperx-io` | I/O and serialization. Currently a placeholder. |
-| `rhyperx-tests` | Benchmarks & integration tests on real datasets (publish=false). |
+| `rhyperx` | Public umbrella/facade crate |
+| `rhyperx-core` | Core data structures, types, collections, utilities, motifs |
+| `rhyperx-algo` | Graph, hypergraph, triangle, and motif algorithms |
+| `rhyperx-macros` | Procedural macros used by the workspace |
+| `rhyperx-io` | Dataset loading, serialization, and caching |
+| `rhyperx-tests` | Integration tests and benchmarks on real datasets |
 
 ## Conventions
 
@@ -25,32 +25,24 @@ Rust hypergraph library. Workspace with 6 crates, edition 2024, resolver "3".
 
 * **Respect task scope:** When the user specifies a crate or scope, restrict investigation, modifications, and validation to that scope whenever possible. Do not inspect or modify the entire Cargo workspace by default. Inspect other crates only when necessary to understand or validate a dependency of the code being changed.
 
-## Tool Usage
+## Tool Routing Strategy
 
 Prefer specialized tools over generic shell commands when they provide the required functionality.
 
-* Use **LSP** for semantic Rust operations such as:
+* **LSP**: Use for workspace semantic code operations:
+  * Local definitions, references, type hints, and compiler diagnostics.
 
-  * finding definitions,
-  * finding references,
-  * inspecting types,
-  * obtaining Rust diagnostics,
-  * navigating symbols.
+* **rust-mcp-server**: Use for local Cargo workflows:
+  * Running `check`, `test`, `clippy`, `fmt`, or `bench`.
 
-* Use **Rust MCP tools** for Cargo/project operations when an appropriate tool is available, such as:
+* **rust-docs-mcp**: Use for inspecting external crates & dependencies:
 
-  * checking,
-  * testing,
-  * linting,
-  * formatting,
-  * benchmarking.
+* **rust-docs-mcp**: Use for API docs & source queries:
+  * **Caching:** Cache new dependencies via `cache_crate` if not already indexed.
+  * **Docs & API:** Search symbols (`search_items_fuzzy`), read signatures (`get_item_details`), or view module trees (`structure`).
+  * **Source Inspection:** Read precise function implementations (`get_item_source`) instead of reading raw files.
+  * Fallback: If `rust-docs-mcp` tools fail, lack detail, or return incomplete code for internal logic, read raw `.rs` source files directly from:
+    1. `~/.rust-docs-mcp/cache/<source_type>/<crate-version>/source/src/`
+    2. `~/.cargo/registry/src/index.crates.io-*/<crate-version>/src/`
 
-* Use **Bash** for operations that are inherently shell-based or are not provided by a specialized tool, such as:
-
-  * `git` operations,
-  * `rg`/text search,
-  * inspecting files,
-  * interacting with other development tools.
-
-Do not use Bash to reproduce functionality already available through a specialized LSP or MCP tool unless there is a specific reason to do so.
-When a specialized tool fails, is unavailable, or does not provide sufficient information, fall back to Bash when appropriate.
+* **Bash**: Use exclusively for shell-native tasks (`git`, `rg`, file manipulation) or when specialized tools fail.

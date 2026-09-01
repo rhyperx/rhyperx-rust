@@ -1,3 +1,3 @@
-pub fn main() {
-    println!("Hello, world!");
-}
+pub mod loader;
+
+pub use loader::*;

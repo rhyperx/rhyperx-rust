@@ -16,6 +16,7 @@ seq-macro = { workspace=true }
 num-traits = { workspace=true }
 rand = { workspace=true }
 nohash-hasher = { workspace=true }
-rustc-hash = "1.1.0"
 bit-set = { workspace=true }
 env_logger = { workspace = true }
+
+rustc-hash = "1.1.0"

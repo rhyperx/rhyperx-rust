@@ -4,9 +4,15 @@
   "lsp": true,
 
   "mcp": {
-    "rust": {
+    "rust-mcp-server": {
       "type": "local",
       "command": ["rust-mcp-server"],
+      "enabled": true
+    },
+    "rust-docs-mcp": {
+      "type": "local",
+      "command": ["rust-docs-mcp"],
+      "transport": "stdio",
       "enabled": true
     }
   },
@@ -18,9 +24,19 @@
       "git log*": "allow",
       "git show*": "allow"
     },
-
-    "edit": "allow",
-    "write": "allow",
+    "external_directory": {
+      "~/.cargo/registry/src/**": "allow",
+      "~/.rust-docs-mcp/cache/**": "allow"
+    },
+    "read": {
+      "~/.cargo/registry/src/**": "allow",
+      "~/.rust-docs-mcp/cache/**": "allow"
+    },
+    "edit": {
+      "*": "allow",
+      "~/.cargo/registry/src/**": "deny",
+      "~/.rust-docs-mcp/cache/**": "deny"
+    },
     "lsp": "allow"
   }
 }

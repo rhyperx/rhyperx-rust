@@ -4,7 +4,7 @@ use hashbrown::HashMap;
 
 use crate::hypergraph::{
     hyperedge::{HxSizedRef, HxSizedRefMut, HxUnsizedRef, HxUnsizedRefMut, SizedHx, UnsizedHx},
-    hyperedge_container::HyperedgeContainer,
+    hyperedge_container::{HxVecStore, HyperedgeContainer},
 };
 use crate::{error::HypergraphError, types::NodeId};
 
@@ -21,7 +21,7 @@ fn find_dup_sorted<T: NodeId>(nodes: &[T]) -> Option<T> {
     feature = "serialize",
     derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)
 )]
-pub struct Hypergraph<T, W, C>
+pub struct Hypergraph<T, W, C = HxVecStore<T, W>>
 where
     T: NodeId,
     C: HyperedgeContainer<T, W>,
