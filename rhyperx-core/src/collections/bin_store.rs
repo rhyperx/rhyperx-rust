@@ -344,6 +344,7 @@ impl<const N: usize> BinStore<raw_type, N> {
             i += 1;
         }
     }
+
     /// Interpret the store as a flat binary number and subtract a small word from it.
     /// Borrow is propagated across words if underflow occurs.
     pub const fn sub_raw(&self, rhs: raw_type) -> Self {

@@ -14,6 +14,11 @@
       "command": ["rust-docs-mcp"],
       "transport": "stdio",
       "enabled": true
+    },
+    "code-graph": {
+      "type": "local",
+      "command": ["bun", "run", "code-graph"],
+      "enabled": true
     }
   },
 

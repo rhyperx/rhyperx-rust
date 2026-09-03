@@ -18,11 +18,12 @@ impl Parse for Args {
 
         for meta in vars {
             if meta.path().is_ident("attr")
-                && let Meta::List(list) = meta {
-                    // allow multiple tokens inside attr(...)
-                    let inner_tokens = list.tokens.clone();
-                    extra_attrs.push(syn::parse_quote!(#[#inner_tokens]));
-                }
+                && let Meta::List(list) = meta
+            {
+                // allow multiple tokens inside attr(...)
+                let inner_tokens = list.tokens.clone();
+                extra_attrs.push(syn::parse_quote!(#[#inner_tokens]));
+            }
         }
         Ok(Args { extra_attrs })
     }

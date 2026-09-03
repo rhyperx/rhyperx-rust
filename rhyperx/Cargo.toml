@@ -8,27 +8,13 @@ description = "Graph and hypergraph data structures and algorithms library"
 [lib]
 crate-type = ["rlib"]
 
+[features]
+default = ["algo"]
+algo = ["dep:rhyperx-algo"]
+io = ["dep:rhyperx-io"]
+serialize = ["rhyperx-core/serialize"]
+
 [dependencies]
-rhyperx-macros = { workspace = true }
-
-bit-set = { workspace = true }
-num-traits = { workspace = true }
-seq-macro = { workspace = true }
-rand = { workspace = true }
-env_logger = { workspace = true }
-
-rkyv = { version = "0.8.15", features = ["hashbrown-0_17"] }
-ouroboros = { version = "0.18.5" }
-indicatif = { workspace = true }
-csv = { version = "1.2" }
-timed = { version = "0.2.1" }
-serde = { version = "1.0", features = ["derive"] }
-toml = { version = "0.8" }
-
-log = { workspace = true }
-
-
-hashbrown = { workspace = true }
-foldhash = { workspace = true }
-paste = { workspace = true }
-anyhow = { workspace = true }
+rhyperx-core = { workspace = true }
+rhyperx-algo = { workspace = true, optional = true }
+rhyperx-io = { workspace = true, optional = true }

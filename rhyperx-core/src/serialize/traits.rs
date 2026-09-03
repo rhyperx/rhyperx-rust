@@ -88,7 +88,10 @@ where
     bytes: AlignedVec,
     #[borrows(bytes)]
     pub archived: &'this rkyv::Archived<Hypergraph<T, W, C>>,
-    _phantom: PhantomData<(T, W, C)>,
+    // #[ouroboros(getter_name = "phantom_data")]
+    // #[ouroboros(hide_contracts)]
+    #[ouroboros(getter_name = "phantom_data")]
+    phantom: PhantomData<(T, W, C)>,
 }
 
 impl<T, W, C> DumpCacheToFile for Hypergraph<T, W, C>
@@ -159,7 +162,7 @@ where
                 )
                 .map_err(|e| Box::new(e) as Box<dyn Error>)
             },
-            _phantom: PhantomData,
+            phantom: PhantomData,
         }
         .try_build()
         .map_err(|e| SerializationError::Unknown(e.to_string()))?;

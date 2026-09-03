@@ -98,7 +98,7 @@ pub const fn max_hyperedge_count(
     total
 }
 
-const fn iota<const N: usize>() -> [usize; N] {
+pub const fn iota<const N: usize>() -> [usize; N] {
     let mut arr = [0; N];
     let mut i = 0;
     while i < N {

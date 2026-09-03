@@ -1,3 +1,4 @@
+#![allow(unused)]
 use super::error::*;
 use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -5,15 +6,14 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
-use std::collections::HashMap;
-
 use super::DatasetLoaderDispatcherAttr;
-
 use rhyperx_algo::misc::clique::find_cliques;
 use rhyperx_core::graph::{AdjList, Undirected};
-use rhyperx_core::misc::serialize::{DumpCacheToFile, LoadFromCacheDeserialized};
 use rhyperx_core::types::NodeId;
 use serde::Deserialize;
+use std::collections::HashMap;
+
+use rhyperx_core::serialize::traits::{DumpCacheToFile, LoadFromCacheDeserialized};
 
 /// Read a whitespace-separated file of integers (one per line).
 pub fn read_ints_from_file<P: AsRef<Path>>(path: &P) -> Result<Vec<u32>, LoaderError> {
@@ -202,7 +202,7 @@ where
 
     type Output;
 
-    #[allow(clippy::wrong_self_convention)]
+    // #[allow(clippy::wrong_self_convention)]
     fn load(&self) -> Result<Self::Output, LoaderError> {
         let dataset_location = self.get_dataset_location();
         let cache_dir = self.get_cache_dir();
@@ -270,7 +270,7 @@ where
         }
     }
 
-    #[allow(clippy::wrong_self_convention)]
+    // #[allow(clippy::wrong_self_convention)]
     fn from_file(&self) -> Result<Self::Output, LoaderError>;
 }
 

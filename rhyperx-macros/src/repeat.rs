@@ -261,11 +261,12 @@ fn parse_custom_mappings(attr: &syn::Attribute) -> syn::Result<Vec<(String, Stri
     let mut mappings = Vec::new();
     attr.parse_nested_meta(|meta| {
         if let Some(ident) = meta.path.get_ident()
-            && !reserved.contains(&ident.to_string().as_str()) {
-                let name = ident.to_string();
-                let val: syn::LitStr = meta.value()?.parse()?;
-                mappings.push((name, val.value()));
-            }
+            && !reserved.contains(&ident.to_string().as_str())
+        {
+            let name = ident.to_string();
+            let val: syn::LitStr = meta.value()?.parse()?;
+            mappings.push((name, val.value()));
+        }
         Ok(())
     })?;
     Ok(mappings)

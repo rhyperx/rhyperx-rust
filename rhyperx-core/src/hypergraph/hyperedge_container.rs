@@ -1,5 +1,5 @@
 use super::hyperedge::{HxUnsizedRef, HxUnsizedRefMut};
-use crate::{misc::chunked_array_map::non_typed::ChunkedArrayMap, types::NodeId};
+use crate::{collections::chunked_array_map::non_typed::ChunkedArrayMap, types::NodeId};
 
 pub trait HyperedgeContainer<T, W>
 where

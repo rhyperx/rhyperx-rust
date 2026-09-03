@@ -1,7 +1,7 @@
-use crate::misc::chunked_array_map::non_typed::{
+use crate::collections::chunked_array_map::non_typed::{
     ChunkedArrayMap as NonTypedChunkedArrayMap, ChunkedArraySet,
 };
-use crate::misc::chunked_array_map::typed::{
+use crate::collections::chunked_array_map::typed::{
     ChunkedArrayMap as TypedChunkedArrayMap, ChunkedArraySet as TypedChunkedArraySet,
 };
 

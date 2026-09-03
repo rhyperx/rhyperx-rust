@@ -25,6 +25,8 @@ Rust hypergraph library. Workspace with 6 crates, edition 2024, resolver "3".
 
 * **Respect task scope:** When the user specifies a crate or scope, restrict investigation, modifications, and validation to that scope whenever possible. Do not inspect or modify the entire Cargo workspace by default. Inspect other crates only when necessary to understand or validate a dependency of the code being changed.
 
+* **Early development:** This library is extremely early in development stage. Clean design/performance should NEVER be sacrificed to mantain compatability or avoid breaking old design decision. If heavy change could improve significantly the library, then propose it before implementing 
+
 ## Tool Routing Strategy
 
 Prefer specialized tools over generic shell commands when they provide the required functionality.
@@ -33,9 +35,8 @@ Prefer specialized tools over generic shell commands when they provide the requi
   * Local definitions, references, type hints, and compiler diagnostics.
 
 * **rust-mcp-server**: Use for local Cargo workflows:
-  * Running `check`, `test`, `clippy`, `fmt`, or `bench`.
-
-* **rust-docs-mcp**: Use for inspecting external crates & dependencies:
+  * Running cargo commands: `check`, `test`, `hack`, `clippy`, `fmt`, or `bench`.  
+  * Remember that this crate has features. Hench you should leverage cargo-hack mcp capability to run `check` and `test` commands feature related code in being written/modified
 
 * **rust-docs-mcp**: Use for API docs & source queries:
   * **Caching:** Cache new dependencies via `cache_crate` if not already indexed.

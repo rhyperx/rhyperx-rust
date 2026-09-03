@@ -6,7 +6,8 @@ license = "MIT OR Apache-2.0"
 description = "Core functionalities and data structures of the rhyperx hypergraph library."
 
 [features]
-serialize = ["rkyv", "ouroboros"]
+default = []
+serialize = ["dep:rkyv", "dep:ouroboros"]
 
 [dependencies]
 rhyperx-macros = { workspace = true }

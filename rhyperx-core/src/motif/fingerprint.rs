@@ -390,18 +390,6 @@ fn binstore_u8_value(bs: BinStore<u8, 1>) -> usize {
     result
 }
 
-/// Build a `[u8; 4]` array containing all nodes 0..4 except `removed`.
-fn exclude_5(removed: u8) -> [u8; 4] {
-    match removed {
-        0 => [1, 2, 3, 4],
-        1 => [0, 2, 3, 4],
-        2 => [0, 1, 3, 4],
-        3 => [0, 1, 2, 4],
-        4 => [0, 1, 2, 3],
-        _ => unreachable!(),
-    }
-}
-
 impl Fingerprint5 {
     const SIZE: usize = 5;
     const MAX_EDGE_COUNT: usize = CompactMotif5::max_edge_count_tot();
