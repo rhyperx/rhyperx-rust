@@ -20,7 +20,7 @@
 //! | `io`        | no      | Re-exports [`rhyperx-io`] under the [`io`] module.      |
 //! | `serialize` | no      | Enables rkyv-based serialization in `rhyperx-core`.     |
 
-pub use rhyperx_core::{CompactMotif, compact_motif};
+pub use rhyperx_core::{CompactMotif, compact_motif, iter_hyperedges};
 pub use rhyperx_core::{collections, error, graph, hypergraph, misc, motif, types, util};
 
 /// Algorithms implemented on top of the core data structures.

@@ -188,7 +188,7 @@ pub mod inner {
 
             /// `EDGE_FILTER_BITMASK[k]` = bitmask selecting only edges of size `k` (1-indexed).
             /// Index 0 stays empty.
-            pub const EDGE_FILTER_BITMASK: [Self; M] = const {
+            pub(crate) const EDGE_FILTER_BITMASK: [Self; M] = const {
                 let mut rv = [Self::EMPTY; M];
 
                 let mut shift_offset = 0;
@@ -208,7 +208,7 @@ pub mod inner {
             };
 
             /// `RELABELING_MAP[perm_id][e]` = edge ID after applying the `perm_id`-th node permutation.
-            pub const RELABELING_MAP: [[usize; M]; P] = const {
+            pub(crate) const RELABELING_MAP: [[usize; M]; P] = const {
                 let node_map = Self::NODE_MAP;
                 let edge_map = Self::EDGE_MAP;
 
@@ -718,11 +718,15 @@ pub mod inner {
                 // ID of the last edge in the range (0-based).
                 let last_edge_id =
                     max_hyperedge_count(N, 1, *range.end().min(&N)).saturating_sub(1);
-                // target = all bits in [0, last_edge_id] set
+                // Number of edges in the range. The counter enumerates 2^count
+                // combinations, so `target` (in the counter's domain, i.e. before
+                // the shift) must hold the maximum counter value: bits [0, count).
+                let count = last_edge_id.saturating_sub(shift) + 1;
+                // target = all bits in [shift, last_edge_id] set
                 let mut target = BinStore::<tm_type, AM>::ZERO;
-                target.set_bit(last_edge_id);
+                target.set_bit(count);
                 target.sub_assign_raw(1);
-                target.set_bit(last_edge_id);
+                target.shift_left_assign(shift);
 
                 Self {
                     bits: BinStore::<tm_type, AM>::ZERO,

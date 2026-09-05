@@ -1,55 +1,11 @@
+use std::hash::Hash;
+
 use foldhash::fast::FixedState;
 use hashbrown::{HashMap, HashSet};
 use indicatif::ProgressIterator;
-use rhyperx_core::{
-    iter_hyperedges,
-    motifs::{
-        compressed_motif::{CompactMotif, CompactMotifConfigurator},
-        types::EnumerationStats,
-    },
-};
-
-pub fn print_static_const<const N: usize>()
-where
-    CompactMotif<N>: CompactMotifConfigurator,
-{
-    iter_hyperedges!(4, 1..=4, |edge, edge_size, edge_idx| {
-        println!("{}: {:?}", edge_idx, &edge[0..edge_size]);
-    });
-
-    println!("Adjacencies:");
-    for cm in CompactMotif::<N>::ADJ {
-        println!("{:016b}", cm.container);
-    }
-
-    println!("Node Map:");
-    for cm in CompactMotif::<N>::NODE_MAP {
-        println!("{:016b}", cm.nodes);
-    }
-
-    println!("Full overlaps:");
-    for cm in CompactMotif::<N>::FULL_OVERLAPS {
-        println!("{:016b}", cm.container);
-    }
-    println!("Part overlaps:");
-    for cm in CompactMotif::<N>::PART_OVERLAPS {
-        println!("{:016b}", cm.container);
-    }
-    println!("Edge filter bitmask");
-    for cm in CompactMotif::<N>::EDGE_FILTER_BITMASK {
-        println!("{:016b}", cm.container);
-    }
-
-    println!("Relabeling map");
-    for cm in CompactMotif::<N>::RELABELING_MAP {
-        println!("{:?}", cm);
-    }
-
-    println!("Inclusion map");
-    for cm in CompactMotif::<N>::INCLUSION_MAP {
-        println!("{:016b}", cm.container);
-    }
-}
+use rhyperx::algo::motifs::types::EnumerationStats;
+use rhyperx::motif::fingerprint::{Fingerprint, Fingerprintable};
+use rhyperx::{CompactMotif, iter_hyperedges};
 
 pub fn print_hyperedges<const N: usize>() {
     iter_hyperedges!(N, 1..=N, |edge, edge_size, edge_idx| {
@@ -61,37 +17,113 @@ pub fn print_hyperedges<const N: usize>() {
     });
 }
 
-pub fn compute_all_fingerprints<const N: usize>(
+/// Abstraction over the supported motif orders, so that fingerprint enumeration
+/// stays generic while each order expands to a distinct concrete type via the
+/// `CompactMotif!` macro.
+pub trait MotifFamily: Copy + Eq + Hash + Fingerprintable {
+    fn enum_motifs() -> Box<dyn Iterator<Item = Self>>;
+    fn enum_motifs_len() -> u64;
+    fn is_connected(&self) -> bool;
+    fn enum_isomorphism<F: FnMut(Self)>(&self, f: F);
+
+    /// Whether the canonical representative can be computed for this order.
+    /// Order 5 fingerprints have no canonical rep yet.
+    fn canonical_rep_implemented() -> bool {
+        true
+    }
+}
+
+impl MotifFamily for CompactMotif!(3) {
+    fn enum_motifs() -> Box<dyn Iterator<Item = Self>> {
+        Box::new(<CompactMotif!(3)>::enum_motifs(2..=3))
+    }
+
+    fn enum_motifs_len() -> u64 {
+        2u64.pow(4)
+    }
+
+    fn is_connected(&self) -> bool {
+        self.is_connected()
+    }
+
+    fn enum_isomorphism<F: FnMut(Self)>(&self, f: F) {
+        self.enum_isomorphism(f)
+    }
+}
+
+impl MotifFamily for CompactMotif!(4) {
+    fn enum_motifs() -> Box<dyn Iterator<Item = Self>> {
+        Box::new(<CompactMotif!(4)>::enum_motifs(2..=4))
+    }
+
+    fn enum_motifs_len() -> u64 {
+        2u64.pow(11)
+    }
+
+    fn is_connected(&self) -> bool {
+        self.is_connected()
+    }
+
+    fn enum_isomorphism<F: FnMut(Self)>(&self, f: F) {
+        self.enum_isomorphism(f)
+    }
+}
+
+impl MotifFamily for CompactMotif!(5) {
+    fn enum_motifs() -> Box<dyn Iterator<Item = Self>> {
+        Box::new(<CompactMotif!(5)>::enum_motifs(2..=5))
+    }
+
+    fn enum_motifs_len() -> u64 {
+        2u64.pow(26)
+    }
+
+    fn is_connected(&self) -> bool {
+        self.is_connected()
+    }
+
+    fn enum_isomorphism<F: FnMut(Self)>(&self, f: F) {
+        self.enum_isomorphism(f)
+    }
+
+    fn canonical_rep_implemented() -> bool {
+        false
+    }
+}
+
+/// Enumerate every motif up to a given order and verify the fingerprint
+/// invariant (distinct fingerprints partition the isomorphism classes).
+pub fn compute_all_fingerprints<T>(
     show_progress: bool,
 ) -> Result<EnumerationStats, Box<dyn std::error::Error>>
 where
-    CompactMotif<N>: CompactMotifConfigurator,
+    T: MotifFamily,
+    <T as Fingerprintable>::FingerprintType: Fingerprint<MotifType = T>,
 {
-    let mut map = HashMap::with_hasher(FixedState::default());
+    let mut map: HashMap<<T as Fingerprintable>::FingerprintType, Vec<T>, FixedState> =
+        HashMap::with_hasher(FixedState::default());
     let time = std::time::Instant::now();
 
     let mut total_count = 0;
     let mut connected_count = 0;
     println!("Enumerating motifs and computing fingerprints...");
 
-    let iter: Box<dyn Iterator<Item = CompactMotif<N>>> = if show_progress {
-        Box::new(CompactMotif::<N>::enum_motifs(2..=N).progress())
+    let iter: Box<dyn Iterator<Item = T>> = if show_progress {
+        Box::new(T::enum_motifs().progress_count(T::enum_motifs_len()))
     } else {
-        Box::new(CompactMotif::<N>::enum_motifs(2..=N))
+        T::enum_motifs()
     };
     for m in iter {
         if m.is_connected() {
             let fingerprint = m.fingerprint();
-            if !map.contains_key(&fingerprint) {
-                map.insert(m.fingerprint(), vec![]);
-            }
-            map.get_mut(&fingerprint).unwrap().push(m);
+            map.entry(fingerprint).or_default().push(m);
 
-            if N != 5 {
-                // TODO! remove this once we can compute canonical rep for order 5
-                let x = fingerprint.clone();
-                let y = fingerprint.clone().into().fingerprint();
-                assert!(x == y, "expected {}\ngot      {}", m, fingerprint.into());
+            if T::canonical_rep_implemented() {
+                let canonical = fingerprint.get_canonical_rep().fingerprint();
+                assert!(
+                    fingerprint == canonical,
+                    "fingerprint not stable under canonical relabeling"
+                );
             }
             connected_count += 1;
         }
@@ -100,21 +132,17 @@ where
     let elapsed_time = time.elapsed();
 
     println!("Aggregating results and checking for clashing buckets...");
-    let mut clashing_buckets = Vec::new();
+    let mut clashing_buckets = 0;
 
-    let iter: Box<
-        dyn Iterator<
-            Item = (
-                &<CompactMotif<N> as CompactMotifConfigurator>::FingerprintType,
-                &Vec<CompactMotif<N>>,
-            ),
-        >,
-    > = if show_progress {
-        Box::new(map.iter().progress())
+    let iter: Box<dyn Iterator<Item = &<T as Fingerprintable>::FingerprintType>> = if show_progress
+    {
+        Box::new(map.keys().progress())
     } else {
-        Box::new(map.iter())
+        Box::new(map.keys())
     };
-    for (fingerprint, motifs) in iter {
+    for fingerprint in iter {
+        let motifs = &map[fingerprint];
+
         let mut unique_motifs = HashSet::new();
         for motif in motifs {
             unique_motifs.insert(*motif);
@@ -126,16 +154,16 @@ where
         });
 
         if isomorphism != unique_motifs {
-            clashing_buckets.push((fingerprint, motifs));
+            clashing_buckets += 1;
         }
     }
 
     let rv = EnumerationStats {
         total_count,
         connected_count,
-        elapsed_time,
         distinct_fingerprints: map.len(),
-        clashing_buckets_count: clashing_buckets.len(),
+        elapsed_time,
+        clashing_buckets_count: clashing_buckets,
     };
 
     Ok(rv)

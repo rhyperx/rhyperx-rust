@@ -7,7 +7,7 @@ description = "Toolkit to test performance and generate charts and tables on rea
 publish = false
 
 [dependencies]
-rhyperx = { workspace = true }
+rhyperx = { workspace = true, features = ["io"] }
 hashbrown = { workspace=true }
 foldhash = { workspace=true }
 paste = { workspace=true }

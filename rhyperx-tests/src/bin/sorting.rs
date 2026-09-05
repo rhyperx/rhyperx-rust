@@ -2,15 +2,11 @@ use std::{error::Error, time::Instant};
 
 use rand::seq::IndexedRandom;
 use rand::{Rng, RngExt};
-use rust_core::{
-    loader::DatasetLoader,
-    misc::{degeneracy_ordering, hyper_degeneracy_ordering},
-    types::{
-        Hx, Hypergraph, NodeId,
-        adj_list::{AdjList, Undirected, WithoutIncidence},
-        hyperadj_list::HyperAdjListBase,
-    },
-};
+use rhyperx::algo::misc::sorting::{degeneracy_ordering, hyper_degeneracy_ordering};
+use rhyperx::graph::{AdjList, Undirected};
+use rhyperx::hypergraph::static_adj_list::StaticAdjList;
+use rhyperx::hypergraph::{HyperedgeContainer, Hypergraph, SizedHx};
+use rhyperx::io::DatasetLoader;
 use seq_macro::seq;
 
 pub fn main() -> Result<(), Box<dyn Error>> {
@@ -21,16 +17,14 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 }
 
 pub fn degeneracy_small() -> Result<(), Box<dyn Error>> {
-    let mut hg: Hypergraph<NodeId, ()> = Hypergraph::new();
+    let mut hg: Hypergraph<u32, ()> = Hypergraph::new();
     // 2-uniform edges (cross-connections)
 
     seq!(N in 3..11 {
-        hg.take_edges::<N>();
+        hg.take_edges(N);
     });
     hg.remove_isolated_nodes();
     hg.normalize_node_ids();
-
-    // println!("Hypergraph: {:?}", hg);
 
     test_common(hg)?;
 
@@ -43,11 +37,10 @@ pub fn degeneracy_big() -> Result<(), Box<dyn Error>> {
         .cached(true)
         .dblp()
         .unweighted()
-        .load()?
-        .0;
+        .load()?;
     println!("Loaded in: {:?}", time.elapsed());
     seq!(N in 3..11 {
-        hg.take_edges::<N>();
+        hg.take_edges(N);
     });
     hg.remove_isolated_nodes();
     hg.normalize_node_ids();
@@ -69,9 +62,9 @@ pub fn degeneracy_random_hypergraphs(
     Ok(())
 }
 
-fn test_common<W: Clone>(mut hg: Hypergraph<NodeId, W>) -> Result<(), Box<dyn Error>> {
+fn test_common<W: Clone + PartialEq>(mut hg: Hypergraph<u32, W>) -> Result<(), Box<dyn Error>> {
     seq!(N in 3..11 {
-        hg.take_edges::<N>();
+        hg.take_edges(N);
     });
     hg.remove_isolated_nodes();
     hg.normalize_node_ids();
@@ -79,14 +72,13 @@ fn test_common<W: Clone>(mut hg: Hypergraph<NodeId, W>) -> Result<(), Box<dyn Er
     println!("n: {}, m: {}", hg.n(), hg.m());
     println!("Hyperedge distribution: ");
     seq!(N in 2..11 {
-        println!("{}-edges: {}", N, hg.edges::<N>().len());
+        println!("{}-edges: {}", N, hg.edges(N).map_or(0, |c| c.len()));
     });
 
     println!();
     let time = Instant::now();
-    let (adj1, _, _) = AdjList::<(), Undirected, WithoutIncidence>::from_edges_mapped(
-        hg.edges::<2>()
-            .iter()
+    let (adj1, _, _) = AdjList::<u32, (), Undirected>::from_edges_mapped(
+        hg.iter_edges(2)
             .map(|e| (e.nodes[0], e.nodes[1], ()))
             .collect(),
     );
@@ -103,7 +95,7 @@ fn test_common<W: Clone>(mut hg: Hypergraph<NodeId, W>) -> Result<(), Box<dyn Er
 
     println!();
     let time = Instant::now();
-    let adj2 = HyperAdjListBase::from_hypergraph_unmapped(hg.clone());
+    let adj2 = StaticAdjList::<u32, u32, W>::from_hypergraph_unmapped(hg.clone());
     println!("Created HyperAdjacencyList in {:?}", time.elapsed());
     println!("adj2: {}, {}", adj2.n(), adj2.m());
 
@@ -113,7 +105,7 @@ fn test_common<W: Clone>(mut hg: Hypergraph<NodeId, W>) -> Result<(), Box<dyn Er
     println!("Computed degeneracy ordering in {:?}", time.elapsed());
 
     if deg1 != deg2 {
-        for e in hg.edges::<2>() {
+        for e in hg.iter_edges(2) {
             println!("{}-{}", e.nodes[0], e.nodes[1]);
         }
         panic!("Found incoherent degeneracy")
@@ -122,11 +114,8 @@ fn test_common<W: Clone>(mut hg: Hypergraph<NodeId, W>) -> Result<(), Box<dyn Er
     Ok(())
 }
 
-pub fn generate_random_hypergraph(
-    num_nodes: usize,
-    max_total_edges: usize,
-) -> Hypergraph<NodeId, ()> {
-    let mut hg: Hypergraph<NodeId, ()> = Hypergraph::new();
+pub fn generate_random_hypergraph(num_nodes: usize, max_total_edges: usize) -> Hypergraph<u32, ()> {
+    let mut hg: Hypergraph<u32, ()> = Hypergraph::new();
     let mut rng = rand::rng();
 
     // Create a pool of available node indices
@@ -141,12 +130,11 @@ pub fn generate_random_hypergraph(
         let mut edges2 = Vec::new();
         for _ in 0..count {
             if let Some(edge) = pick_unique_nodes(&nodes, 2, &mut rng) {
-                // Hx::new_unchecked expected an array: [0, 1]
-                let arr: [NodeId; 2] = [edge[0] as NodeId, edge[1] as NodeId];
-                edges2.push(Hx::new(arr, ()).expect("Malformed edge"));
+                let arr: [u32; 2] = [edge[0] as u32, edge[1] as u32];
+                edges2.push(SizedHx::<2, u32, ()>::new(arr, ()).expect("Malformed edge"));
             }
         }
-        hg.extend_with_edges::<2>(edges2);
+        hg.extend_with_edges_sized::<2>(edges2);
         edges_left -= count;
     }
 
@@ -156,11 +144,11 @@ pub fn generate_random_hypergraph(
         let mut edges3 = Vec::new();
         for _ in 0..count {
             if let Some(edge) = pick_unique_nodes(&nodes, 3, &mut rng) {
-                let arr: [NodeId; 3] = [edge[0] as NodeId, edge[1] as NodeId, edge[2] as NodeId];
-                edges3.push(Hx::new(arr, ()).expect("Malformed edge"));
+                let arr: [u32; 3] = [edge[0] as u32, edge[1] as u32, edge[2] as u32];
+                edges3.push(SizedHx::<3, u32, ()>::new(arr, ()).expect("Malformed edge"));
             }
         }
-        hg.extend_with_edges::<3>(edges3);
+        hg.extend_with_edges_sized::<3>(edges3);
         edges_left -= count;
     }
 
@@ -170,16 +158,16 @@ pub fn generate_random_hypergraph(
         for _ in 0..edges_left {
             // Use up the remaining budget
             if let Some(edge) = pick_unique_nodes(&nodes, 4, &mut rng) {
-                let arr: [NodeId; 4] = [
-                    edge[0] as NodeId,
-                    edge[1] as NodeId,
-                    edge[2] as NodeId,
-                    edge[3] as NodeId,
+                let arr: [u32; 4] = [
+                    edge[0] as u32,
+                    edge[1] as u32,
+                    edge[2] as u32,
+                    edge[3] as u32,
                 ];
-                edges4.push(Hx::new(arr, ()).expect("Malformed edge"));
+                edges4.push(SizedHx::<4, u32, ()>::new(arr, ()).expect("Malformed edge"));
             }
         }
-        hg.extend_with_edges::<4>(edges4);
+        hg.extend_with_edges_sized::<4>(edges4);
     }
 
     hg

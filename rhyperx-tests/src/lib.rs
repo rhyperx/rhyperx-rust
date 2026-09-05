@@ -1,6 +1,4 @@
-// pub mod shared;
-//
-// #[cfg(test)]
-// pub mod tests;
+pub mod shared;
 
-pub fn main() {}
+#[cfg(test)]
+pub mod tests;
