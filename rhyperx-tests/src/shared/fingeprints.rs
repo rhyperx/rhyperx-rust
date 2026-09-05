@@ -1,7 +1,7 @@
 use foldhash::fast::FixedState;
 use hashbrown::{HashMap, HashSet};
 use indicatif::ProgressIterator;
-use rust_core::{
+use rhyperx_core::{
     iter_hyperedges,
     motifs::{
         compressed_motif::{CompactMotif, CompactMotifConfigurator},

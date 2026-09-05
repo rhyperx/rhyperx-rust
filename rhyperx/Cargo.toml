@@ -11,7 +11,7 @@ crate-type = ["rlib"]
 [features]
 default = ["algo"]
 algo = ["dep:rhyperx-algo"]
-io = ["dep:rhyperx-io"]
+io = ["dep:rhyperx-io", "serialize"]
 serialize = ["rhyperx-core/serialize"]
 
 [dependencies]

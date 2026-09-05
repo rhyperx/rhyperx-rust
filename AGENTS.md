@@ -37,6 +37,7 @@ Prefer specialized tools over generic shell commands when they provide the requi
 * **rust-mcp-server**: Use for local Cargo workflows:
   * Running cargo commands: `check`, `test`, `hack`, `clippy`, `fmt`, or `bench`.  
   * Remember that this crate has features. Hench you should leverage cargo-hack mcp capability to run `check` and `test` commands feature related code in being written/modified
+  * There are long running integration tests, avoid running them (with the --lib option) unless they are nedded for what you are building specifically
 
 * **rust-docs-mcp**: Use for API docs & source queries:
   * **Caching:** Cache new dependencies via `cache_crate` if not already indexed.
