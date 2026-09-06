@@ -31,7 +31,7 @@ fmt *args:
     cargo fmt --all {{args}}
 
 profile *args: 
-  cd rust-core/rust-core-tests && samply record cargo run --profile=profiling --bin {{args}}
+    samply record cargo run --profile=profiling --package rhyperx-tests --bin {{args}}
 
 print-env: 
   @echo $PLOT_OUT_DIR

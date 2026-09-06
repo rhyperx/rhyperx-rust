@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::hash::Hash;
 
 use foldhash::fast::FixedState;
@@ -20,7 +21,7 @@ pub fn print_hyperedges<const N: usize>() {
 /// Abstraction over the supported motif orders, so that fingerprint enumeration
 /// stays generic while each order expands to a distinct concrete type via the
 /// `CompactMotif!` macro.
-pub trait MotifFamily: Copy + Eq + Hash + Fingerprintable {
+pub trait MotifFamily: Copy + Eq + Hash + Fingerprintable + Display {
     fn enum_motifs() -> Box<dyn Iterator<Item = Self>>;
     fn enum_motifs_len() -> u64;
     fn is_connected(&self) -> bool;
@@ -115,6 +116,7 @@ where
     };
     for m in iter {
         if m.is_connected() {
+            // println!("{}", m);
             let fingerprint = m.fingerprint();
             map.entry(fingerprint).or_default().push(m);
 

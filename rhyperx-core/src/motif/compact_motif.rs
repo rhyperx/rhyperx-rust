@@ -23,9 +23,9 @@ pub mod inner {
     ///
     /// # Type parameters
     /// * `TM`  — storage word for the edge bit-vector (u8 … u128).
+    /// * `AM`  — number of `TM` words needed to store M bits.
     /// * `N`   — number of nodes in the motif (≤ 8).
     /// * `M`   — total number of possible hyperedges (Σ C(N, k) over k = 1..N).
-    /// * `AM`  — number of `TM` words needed to store M bits.
     /// * `P`   — factorial(N), i.e. number of node relabelings.
     ///
     /// # Example
@@ -74,11 +74,15 @@ pub mod inner {
 
             /// Motif with every possible edge set.
             const FULL: Self = Self {
-                bits: BinStore::<tm_type, AM>::ONE.not(),
+                bits: {
+                    let mut bits = BinStore::<tm_type, AM>::ZERO.not();
+                    bits.retain_lsb(M);
+                    bits
+                },
             };
 
             /// Map a 1-hot u8 node-set to an edge ID.
-            const fn edge_id_from_bitset(bitset: BinStore<u8, 1>) -> usize {
+            pub const fn edge_id_from_bitset(bitset: BinStore<u8, 1>) -> usize {
                 let mut idx = 0;
                 let mut i = 0;
                 while i < 8 {
@@ -267,6 +271,24 @@ pub mod inner {
                 self.bits.shift_right_assign(rhs);
             }
 
+            /// Returns a CompactMotif with all edges that are either in `self` or in `other`.
+            pub const fn union(&self, other: &Self) -> Self {
+                Self::new(self.bits.bitor(&other.bits))
+            }
+
+            /// Returns a CompactMotif with all edges that are in both `self` and `other`.
+            pub const fn intersection(&self, other: &Self) -> Self {
+                Self::new(self.bits.bitand(&other.bits))
+            }
+
+            /// Return a CompactMotif whith all edge except those in `self`.
+            pub const fn complement(&self) -> Self {
+                let mut rv = Self::new(self.bits);
+                rv.bits.negate();
+                rv.bits.retain_lsb(M);
+                rv
+            }
+
             /// Number of edges in this motif
             pub const fn edge_count(&self) -> usize {
                 self.bits.count_ones()
@@ -387,6 +409,24 @@ pub mod inner {
                 self
             }
 
+            /// Retain the ids in the specified range [low, high)
+            pub const fn retain_ids_in_range(&mut self, low: usize, high: usize) {
+                let mut mask = BinStore::<tm_type, AM>::ZERO;
+                mask.set_range(low, high);
+                self.bits.bitand_assign(&mask);
+            }
+
+            /// Retain the ordinal of the id in the current motif. Note that an edge with specified
+            /// id should not necessarily be present in the motif.
+            ///
+            /// Example: if the motif has edges with ids [0, 1, 3, 4] then `id_ordinal(3) = 2`,
+            /// cause id 3 is the third id in the sorted edge_id list
+            pub const fn id_ordinal(&self, id: usize) -> usize {
+                let mut mask = BinStore::<tm_type, AM>::ZERO;
+                mask.set_range(0, id);
+                self.bits.bitand(&mask).count()
+            }
+
             /// Number of edges of a given size (binomial coefficient C(N, order)).
             pub const fn max_edge_count(order: usize) -> usize {
                 binomial_coefficient(N, order)
@@ -428,6 +468,12 @@ pub mod inner {
                 Self::new(Self::ADJ[node].bits.bitand(&self.bits))
             }
 
+            /// Removes one hyperedge from the motif and returns its edge ID. If the motif is empty,
+            /// a value higher > than the max possible id will be returned.
+            pub const fn pop(&mut self) -> usize {
+                self.bits.pop()
+            }
+
             /// Iterator over every possible motif over the full edge space.
             pub fn iter_all_combinations() -> CompactMotifCombinationsIterator<tm_type, N, M, AM, P>
             {
@@ -442,6 +488,7 @@ pub mod inner {
                 }
             }
 
+            /// Iterate over edges (as u8 bitsets of nodes)
             pub fn iter_edges(&self) -> impl Iterator<Item = BinStore<u8, 1>> {
                 self.iter_edges_ids().map(|e| Self::NODE_MAP[e])
             }
@@ -472,22 +519,21 @@ pub mod inner {
                     None => return false,
                 };
 
-                let mut visited = BinStore::<tm_type, AM>::ZERO;
+                let mut visited_nodes = BinStore::<u8, 1>::ZERO;
+                let mut edges_to_visit = BinStore::<tm_type, AM>::ZERO.not();
                 let mut queue = BinStore::<tm_type, AM>::ZERO;
-                visited.set_bit(first_edge);
                 queue.set_bit(first_edge);
 
                 while !queue.is_empty() {
-                    let e = queue.trailing_zeros();
-                    queue.clear_bit(e);
+                    let e = queue.pop();
+                    visited_nodes.bitor_assign(&Self::NODE_MAP[e]);
+                    edges_to_visit.clear_bit(e);
 
-                    let mut neighbors = Self::PART_OVERLAPS[e].bits;
-                    neighbors.bitand_assign(&visited.not());
-                    visited.bitor_assign(&neighbors);
-                    queue.bitor_assign(&neighbors);
+                    let new_edges = self.part_ovelaps(e).bits;
+                    queue.bitor_assign(&new_edges.bitand(&edges_to_visit));
                 }
 
-                visited == self.bits
+                visited_nodes == BinStore::<u8, 1>::new([((1usize << N) - 1) as u8; 1])
             }
 
             /// Utility function used as a filter in iterator operations

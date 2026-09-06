@@ -1,5 +1,4 @@
 use crate::CompactMotif;
-use crate::collections::BinStore;
 use hashbrown::HashSet;
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -35,7 +34,7 @@ pub struct Fingerprint3 {
 
 impl Fingerprint3 {
     pub const SIZE: usize = 3;
-    pub const MAX_EDGE_COUNT: usize = 2 << Self::SIZE;
+    pub const MAX_EDGE_COUNT: usize = CompactMotif3::max_edge_count_tot();
 
     pub fn get_canonical_rep(&self) -> CompactMotif3 {
         let count_2 = self.edge_counts & ((1 << 4) - 1);
@@ -378,21 +377,43 @@ pub struct Fingerprint5 {
     edge_connection_map_sizes: (usize, usize),
 }
 
-/// Extract the raw integer value of a `BinStore<u8, 1>` bitset.
-fn binstore_u8_value(bs: BinStore<u8, 1>) -> usize {
-    let mut result = 0usize;
-    let mut bits = bs;
-    while !bits.is_empty() {
-        let n = bits.trailing_zeros();
-        bits.clear_bit(n);
-        result |= 1 << n;
-    }
-    result
-}
-
 impl Fingerprint5 {
     const SIZE: usize = 5;
     const MAX_EDGE_COUNT: usize = CompactMotif5::max_edge_count_tot();
+
+    pub const GROUP_ID_ADJ: [[[CompactMotif5; 6]; 4]; CompactMotif5::max_edge_count_tot()] = const {
+        let mut group_id_adj =
+            [[[CompactMotif5::EMPTY; 6]; 4]; CompactMotif5::max_edge_count_tot()];
+        let mut pivot_edge = 0;
+        while pivot_edge < Self::MAX_EDGE_COUNT {
+            let mut cross_edges = CompactMotif5::PART_OVERLAPS[pivot_edge]
+                .intersection(&CompactMotif5::FULL_OVERLAPS[pivot_edge].complement());
+            cross_edges.remove_edge(pivot_edge);
+            cross_edges.remove_order(5);
+
+            while !cross_edges.is_empty() {
+                let peripheral_edge = cross_edges.pop();
+
+                let overlapping_nodes = CompactMotif5::NODE_MAP[peripheral_edge]
+                    .bitand(&CompactMotif5::NODE_MAP[pivot_edge]);
+                let overlapping_size = overlapping_nodes.count();
+
+                let overlapping_group_idx = {
+                    let node_induced_edge = CompactMotif5::edge_id_from_bitset(overlapping_nodes);
+                    CompactMotif5::FULL_OVERLAPS[pivot_edge]
+                        .filtered_by_order(overlapping_size)
+                        .id_ordinal(node_induced_edge)
+                };
+
+                group_id_adj[pivot_edge][overlapping_size - 1][overlapping_group_idx]
+                    .add_edge(peripheral_edge);
+            }
+
+            pivot_edge += 1;
+        }
+
+        group_id_adj
+    };
 
     pub fn new() -> Self {
         Self {
@@ -408,52 +429,18 @@ impl Fingerprint5 {
     pub fn build_order_map(&mut self, cm: &CompactMotif5) {
         let mut order_map = [0u16; Self::SIZE];
 
-        for e in cm.iter_edges_ids() {
-            let nodes = CompactMotif5::NODE_MAP[e];
-            let edge_size = nodes.count() as usize;
-            let mut bits = nodes;
+        for e in cm.iter_edges() {
+            let size = e.count() as usize;
+            let mut bits = e;
             while !bits.is_empty() {
                 let n = bits.trailing_zeros();
                 bits.clear_bit(n);
-                order_map[n as usize] += 1 << (3 * (edge_size - 2));
+                order_map[n as usize] += 1 << (3 * (size - 2));
             }
         }
         order_map.sort_unstable();
 
         self.order_map = order_map;
-    }
-
-    fn compute_group_id_adj() -> Vec<Vec<Vec<CompactMotif5>>> {
-        let max_edge_count = Self::MAX_EDGE_COUNT;
-        let mut group_id_adj = vec![vec![vec![CompactMotif5::EMPTY; 6]; 4]; max_edge_count];
-
-        for outer in 0..max_edge_count {
-            let mut cross_edges =
-                CompactMotif5::PART_OVERLAPS[outer] & !CompactMotif5::FULL_OVERLAPS[outer];
-            cross_edges.remove_edge(outer);
-            cross_edges.remove_order(5);
-
-            for inner in cross_edges.iter_edges_ids() {
-                let overlapping_nodes =
-                    CompactMotif5::NODE_MAP[outer].bitand(&CompactMotif5::NODE_MAP[inner]);
-                let overlapping_size = overlapping_nodes.count() as usize;
-
-                let overlapping_group_idx = {
-                    let node_induced_edge =
-                        CompactMotif5::EDGE_MAP[binstore_u8_value(overlapping_nodes)];
-                    let filtered =
-                        CompactMotif5::FULL_OVERLAPS[outer].filtered_by_order(overlapping_size);
-                    filtered
-                        .iter_edges_ids()
-                        .take_while(|&e| e < node_induced_edge)
-                        .count()
-                };
-
-                group_id_adj[outer][overlapping_size - 1][overlapping_group_idx].add_edge(inner);
-            }
-        }
-
-        group_id_adj
     }
 
     pub fn build_edge_connection_map(&mut self, cm: &CompactMotif5) {
@@ -463,13 +450,12 @@ impl Fingerprint5 {
             [0u32; CompactMotif5::max_edge_count(3)],
         );
 
-        let group_id_adj = Self::compute_group_id_adj();
+        // order 2 edges
+        for edge_id in cm.filtered_by_order(2).iter_edges_ids() {
+            let out_10 = *cm & Self::GROUP_ID_ADJ[edge_id][0][0];
+            let out_11 = *cm & Self::GROUP_ID_ADJ[edge_id][0][1];
 
-        for e in cm.filtered_by_order(2).iter_edges_ids() {
-            let out_10 = *cm & group_id_adj[e][0][0];
-            let out_11 = *cm & group_id_adj[e][0][1];
-
-            let out_20 = *cm & group_id_adj[e][1][0];
+            let out_20 = *cm & Self::GROUP_ID_ADJ[edge_id][1][0];
 
             let packed_out_20 = (out_10.filtered_by_order(2).edge_count() << 0)
                 | (out_10.filtered_by_order(3).edge_count() << 2)
@@ -491,16 +477,17 @@ impl Fingerprint5 {
             edge_connection_map_sizes.0 += 1;
         }
 
-        for e in cm.filtered_by_order(3).iter_edges_ids() {
-            let out_10 = *cm & group_id_adj[e][0][0];
-            let out_11 = *cm & group_id_adj[e][0][1];
-            let out_12 = *cm & group_id_adj[e][0][2];
+        // order 3 edges
+        for edge_id in cm.filtered_by_order(3).iter_edges_ids() {
+            let out_10 = *cm & Self::GROUP_ID_ADJ[edge_id][0][0];
+            let out_11 = *cm & Self::GROUP_ID_ADJ[edge_id][0][1];
+            let out_12 = *cm & Self::GROUP_ID_ADJ[edge_id][0][2];
 
-            let out_20 = *cm & group_id_adj[e][1][0];
-            let out_21 = *cm & group_id_adj[e][1][1];
-            let out_22 = *cm & group_id_adj[e][1][2];
+            let out_20 = *cm & Self::GROUP_ID_ADJ[edge_id][1][0];
+            let out_21 = *cm & Self::GROUP_ID_ADJ[edge_id][1][1];
+            let out_22 = *cm & Self::GROUP_ID_ADJ[edge_id][1][2];
 
-            let out_30 = *cm & group_id_adj[e][2][0];
+            let out_30 = *cm & Self::GROUP_ID_ADJ[edge_id][2][0];
 
             let packed_out_10 = (out_10.filtered_by_order(2).edge_count() << 0)
                 | (out_10.filtered_by_order(3).edge_count() << 2);

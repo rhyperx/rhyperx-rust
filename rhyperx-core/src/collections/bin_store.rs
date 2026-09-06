@@ -47,6 +47,41 @@ impl<const N: usize> BinStore<raw_type, N> {
         self.bits[word_index] |= (1 as raw_type) << bit_index;
     }
 
+    /// Set the bits in range `[start, end)` to 1, leaving all other bits
+    /// untouched. Out-of-range positions are clamped to the store capacity.
+    pub const fn set_range(&mut self, start: usize, end: usize) {
+        let bits_per_word = raw_type::BITS as usize;
+        let capacity = N * bits_per_word;
+
+        if start >= capacity || end <= start {
+            return;
+        }
+
+        let end = if end > capacity { capacity } else { end };
+
+        let start_word = start / bits_per_word;
+        let end_word = end.div_ceil(bits_per_word);
+
+        let start_mask = !0 << (start % bits_per_word);
+        let end_mask = if end % bits_per_word != 0 {
+            !0 >> (bits_per_word - (end % bits_per_word))
+        } else {
+            !0
+        };
+
+        if start_word == end_word - 1 {
+            self.bits[start_word] |= start_mask & end_mask;
+        } else {
+            self.bits[start_word] |= start_mask;
+            let mut curr_word = start_word + 1;
+            while curr_word < end_word - 1 {
+                self.bits[curr_word] = !0;
+                curr_word += 1;
+            }
+            self.bits[end_word - 1] |= end_mask;
+        }
+    }
+
     /// Clear the bit at `index` (set to 0).
     pub const fn clear_bit(&mut self, index: usize) {
         let word_index = index / (raw_type::BITS as usize);
